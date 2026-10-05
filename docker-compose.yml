@@ -1,0 +1,35 @@
+# Blush ERP con MySQL en contenedores:
+#   docker compose up -d --build    →  http://localhost:8080
+#   docker compose down             (añade -v para borrar también los datos de MySQL)
+services:
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      ERP_MOTOR: mysql
+      ERP_MYSQL_HOST: db
+      ERP_MYSQL_BD: blush_erp
+      ERP_MYSQL_USUARIO: blush
+      ERP_MYSQL_CLAVE: blush_local_2026
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: blush_erp
+      MYSQL_USER: blush
+      MYSQL_PASSWORD: blush_local_2026
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ublush", "-pblush_local_2026"]
+      interval: 5s
+      retries: 20
+
+volumes:
+  mysql:

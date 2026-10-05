@@ -1,0 +1,76 @@
+/* Factura imprimible: hoja A4 blanca (también en modo oscuro, porque es papel) */
+
+:root{
+  --ink:#18181B;
+  --muted:#6B6B73;
+  --rosa:#A3154A;
+  --linea:#E7E5E4;
+  --fondo:#F6F5F3;
+  --fondo-papel:#FFFFFF;
+}
+@media (prefers-color-scheme:dark){
+  :root{--fondo:#140D11}
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--fondo);color:var(--ink);padding:24px 16px 48px}
+
+.barra-acciones{max-width:794px;margin:0 auto 16px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.boton{
+  display:inline-flex;align-items:center;height:36px;padding:0 14px;border-radius:8px;
+  border:1px solid #D6D3D1;background:#fff;color:var(--ink);text-decoration:none;cursor:pointer;
+  font:500 .86rem/1 'DM Sans',sans-serif;
+}
+.boton--principal{background:#18181B;color:#fff;border-color:#18181B}
+.boton:disabled{opacity:.5;cursor:not-allowed}
+.boton:focus-visible{outline:2px solid #A3154A;outline-offset:3px}
+
+.papel{
+  max-width:794px;margin:0 auto;background:var(--fondo-papel);color:var(--ink);
+  padding:56px 56px 40px;border-radius:12px;box-shadow:0 1px 3px rgba(24,24,27,.08),0 12px 32px rgba(24,24,27,.08);
+  min-height:600px;
+}
+
+.cabecera{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;padding-bottom:28px;border-bottom:2px solid var(--ink)}
+.logo{font-family:'Playfair Display',serif;font-style:italic;font-size:1.5rem;margin-bottom:14px}
+.logo span{color:var(--muted);font-style:normal;margin:0 3px}
+.logo em{color:var(--rosa)}
+.emisor{font-size:.85rem;line-height:1.6;color:var(--muted)}
+.emisor strong{color:var(--ink)}
+.titulo{text-align:right}
+.titulo h1{font-weight:600;font-size:1.9rem;letter-spacing:-.02em;line-height:1;text-transform:uppercase}
+.titulo .numero{font-family:'DM Mono',monospace;color:var(--rosa);font-size:1.05rem;margin:8px 0 10px}
+.titulo p{font-size:.85rem;color:var(--muted);line-height:1.6}
+
+.aviso-rectificativa{margin-top:20px;padding:12px 14px;border-left:3px solid var(--rosa);background:#FBF1F5;font-size:.88rem}
+.cliente{margin:28px 0;font-size:.9rem;line-height:1.6}
+.etiqueta{font-size:.66rem;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+
+.lineas{width:100%;border-collapse:collapse;font-size:.9rem}
+.lineas th{font-size:.66rem;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px 8px;border-bottom:1px solid var(--linea)}
+.lineas td{padding:14px 8px;border-bottom:1px solid var(--linea)}
+.numero{text-align:right !important;font-variant-numeric:tabular-nums}
+
+.totales{margin:24px 0 0 auto;width:min(300px,100%);display:grid;grid-template-columns:1fr auto;row-gap:8px;font-size:.9rem}
+.totales dd{padding-left:24px}
+.totales dt{color:var(--muted)}
+.totales dd{text-align:right;font-variant-numeric:tabular-nums}
+.totales .total{font-weight:600;font-size:1.2rem;color:var(--ink);padding-top:10px;border-top:2px solid var(--ink)}
+
+.pie{margin-top:56px;padding-top:16px;border-top:1px solid var(--linea);font-size:.75rem;color:var(--muted);text-align:center}
+
+.cargando,.error{text-align:center;padding:80px 0;color:var(--muted)}
+.error h1{font-weight:600;color:var(--ink);margin-bottom:8px}
+.error .boton{margin-top:20px}
+
+@media (max-width:600px){
+  .papel{padding:28px 20px}
+  .titulo{text-align:left}
+}
+
+@media print{
+  @page{size:A4;margin:16mm}
+  body{background:#fff;padding:0}
+  .barra-acciones{display:none}
+  .papel{box-shadow:none;padding:0;max-width:none;border-radius:0}
+}

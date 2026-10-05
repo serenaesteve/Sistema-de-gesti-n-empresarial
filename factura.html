@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Factura · Blush ERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono&display=swap">
+    <link rel="stylesheet" href="nucleo/estilo/factura.css">
+  </head>
+  <body>
+    <div class="barra-acciones">
+      <a href="./#/facturas" class="boton">Volver al ERP</a>
+      <button id="imprimir" class="boton boton--principal" type="button" disabled>Imprimir / Guardar PDF</button>
+    </div>
+    <main id="factura" class="papel" aria-live="polite">
+      <p class="cargando">Cargando factura…</p>
+    </main>
+    <script type="module" src="nucleo/js/factura.js"></script>
+  </body>
+</html>

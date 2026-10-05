@@ -1,0 +1,3 @@
+# Bloquea la descarga directa de la base de datos.
+# Solo tiene efecto si Apache permite .htaccess (AllowOverride All). Ver INCIDENCIAS en RA1-ERP-CRM.md.
+Require all denied

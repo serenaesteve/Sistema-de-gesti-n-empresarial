@@ -1,3 +1,20 @@
-# Bloquea la descarga directa de la base de datos.
+# Bloquea la descarga directa de la base de datos y cualquier archivo en este directorio.
 # Solo tiene efecto si Apache permite .htaccess (AllowOverride All). Ver INCIDENCIAS en RA1-ERP-CRM.md.
-Require all denied
+
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order deny,allow
+  Deny from all
+</IfModule>
+
+<FilesMatch "\.(sqlite|sqlite3|db|sql|json|bak)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+  </IfModule>
+</FilesMatch>

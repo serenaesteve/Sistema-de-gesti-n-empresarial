@@ -74,12 +74,12 @@ function cambiarMiClave(PDO $pdo, array $usuario, array $cuerpo): void {
   $consulta = $pdo->prepare('SELECT clave FROM usuarios WHERE id = ?');
   $consulta->execute([$usuario['id']]);
   if (!password_verify((string)($cuerpo['actual'] ?? ''), (string)$consulta->fetchColumn())) {
-    usleep(600000);
     fallar('Revisa los campos marcados', 422, ['actual' => 'La contraseña actual no es correcta']);
   }
   $nueva = (string)($cuerpo['nueva'] ?? '');
   if (mb_strlen($nueva) < 8) fallar('Revisa los campos marcados', 422, ['nueva' => 'Mínimo 8 caracteres']);
 
   $pdo->prepare('UPDATE usuarios SET clave = ? WHERE id = ?')->execute([password_hash($nueva, PASSWORD_DEFAULT), $usuario['id']]);
+  session_regenerate_id(true); // Evita secuestro de sesión regenerando el token tras cambio de clave
   registrar($pdo, 'editar', 'usuarios', $usuario['id'], "Usuario «{$usuario['nombre']}» · contraseña cambiada por el propio usuario");
 }

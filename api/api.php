@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: same-origin');
 header('Cache-Control: no-store');
 
 $config  = require __DIR__ . '/config.php';

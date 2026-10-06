@@ -13,10 +13,12 @@ $GLOBALS['usuario_actual'] = null;
 
 function iniciarSesion(): void {
   session_name('blush_sesion');
+  $esHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+          || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https');
   session_set_cookie_params([
     'httponly' => true,       // JavaScript no puede leer la cookie
     'samesite' => 'Strict',   // no se envía desde otras webs (protección CSRF)
-    'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'secure'   => $esHttps,
   ]);
   session_start();
 }
@@ -67,12 +69,20 @@ function entrar(PDO $pdo, array $cuerpo): array {
   $email = trim((string)($cuerpo['email'] ?? ''));
   $clave = (string)($cuerpo['clave'] ?? '');
 
+  // Mitigación de fuerza bruta / DoS: límite de intentos fallidos por ventana de tiempo en lugar de bloqueo síncrono
+  $haceUnMinuto = gmdate('Y-m-d H:i:s', time() - 60);
+  $consultaIntentos = $pdo->prepare("SELECT COUNT(*) FROM registro WHERE accion = 'fallo' AND recurso = 'sesion' AND fecha >= ?");
+  $consultaIntentos->execute([$haceUnMinuto]);
+  if ((int)$consultaIntentos->fetchColumn() >= 10) {
+    fallar('Demasiados intentos fallidos. Por seguridad, espera un minuto.', 429);
+  }
+
   $consulta = $pdo->prepare('SELECT id, nombre, clave FROM usuarios WHERE email = ?');
   $consulta->execute([$email]);
   $usuario = $consulta->fetch();
 
   if (!$usuario || !password_verify($clave, $usuario['clave'])) {
-    usleep(600000); // frena los intentos por fuerza bruta
+    registrar($pdo, 'fallo', 'sesion', null, "Intento fallido de inicio de sesión: $email");
     fallar('Email o contraseña incorrectos', 401, ['clave' => 'Email o contraseña incorrectos']);
   }
 

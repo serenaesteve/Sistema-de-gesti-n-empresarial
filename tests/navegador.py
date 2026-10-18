@@ -3,11 +3,13 @@
 Las lanza tests/ejecutar.sh contra un servidor con una base de datos temporal.
 Uso directo:  python3 tests/navegador.py http://127.0.0.1:8765/ [carpeta-para-capturas]
 """
+import os
 import sys
 from playwright.sync_api import sync_playwright, expect
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8765/"
 CAPTURAS = sys.argv[2] if len(sys.argv) > 2 else None
+URL_INSTALADOR = os.environ.get("URL_INSTALADOR")  # ERP sin instalar, para probar el asistente
 superadas, fallidas, errores_consola = 0, [], []
 
 
@@ -19,7 +21,7 @@ def prueba(nombre, funcion):
         print(f"  \033[32m✓\033[0m {nombre}")
     except Exception as e:  # noqa: BLE001
         fallidas.append(nombre)
-        print(f"  \033[31m✗ {nombre}\033[0m\n      {str(e).splitlines()[0]}")
+        print(f"  \033[31m✗ {nombre}\033[0m\n      " + ("\n      ".join(str(e).splitlines()[:6]) if os.environ.get("DETALLE") else str(e).splitlines()[0]))
 
 
 def captura(pagina, nombre):
@@ -32,6 +34,14 @@ def captura(pagina, nombre):
 
 def entrar(pagina, email, clave="blush2026"):
     pagina.goto(URL)
+    pagina.fill("#acceso-email", email)
+    pagina.fill("#acceso-clave", clave)
+    pagina.click(".acceso-formulario button[type=submit]")
+    pagina.wait_for_selector("#menu-lista a")
+
+
+def entrar_en(pagina, email, clave):
+    pagina.wait_for_selector("#acceso-email")
     pagina.fill("#acceso-email", email)
     pagina.fill("#acceso-clave", clave)
     pagina.click(".acceso-formulario button[type=submit]")
@@ -66,10 +76,14 @@ with sync_playwright() as p:
     prueba("Acceso con contraseña incorrecta y correcta", acceso)
 
     def todas_las_vistas():
-        for ruta in ["clientes", "pedidos", "facturas", "productos", "proveedores", "compras", "usuarios", "registro", "sistema"]:
+        for ruta in ["clientes", "pedidos", "facturas", "productos", "proveedores", "compras", "usuarios", "registro", "modulos", "ajustes", "api", "sistema"]:
             ir(pg, ruta)
             pg.wait_for_selector("main .tarjeta")
-    prueba("Las diez vistas cargan sin errores", todas_las_vistas)
+    prueba("Las trece vistas cargan sin errores", todas_las_vistas)
+
+    def insignia_entorno():
+        expect(pg.locator(".insignia-entorno")).to_have_text("Pruebas")
+    prueba("La cabecera indica el entorno de pruebas", insignia_entorno)
 
     def pedido_varias_lineas():
         ir(pg, "pedidos")
@@ -154,6 +168,110 @@ with sync_playwright() as p:
         ir(pg, "registro")
         captura(pg, "registro")
     prueba("Listados y registro", pedidos_captura)
+
+    def pantalla_modulos():
+        ir(pg, "modulos")
+        captura(pg, "modulos")
+        inventario = pg.locator("article.modulo:has(h2:text-is('Inventario'))")
+        expect(inventario.locator("button")).to_be_disabled()  # lo necesitan Ventas y Compras
+        pg.locator("article.modulo:has(h2:text-is('Compras'))").locator("button:has-text('Desactivar')").click()
+        with pg.expect_navigation():
+            pg.click("dialog button[value=si]")
+        pg.wait_for_selector("#menu-lista a")
+        expect(pg.locator("#menu-lista a[data-ruta=compras]")).to_have_count(0)
+        ir(pg, "modulos")
+        with pg.expect_navigation():
+            pg.locator("article.modulo:has(h2:text-is('Compras'))").locator("button:has-text('Activar')").click()
+        expect(pg.locator("#menu-lista a[data-ruta=compras]")).to_have_count(1)
+    prueba("Módulos: Inventario bloqueado por dependencias; Compras se desactiva y se activa", pantalla_modulos)
+
+    def pantalla_ajustes():
+        ir(pg, "ajustes")
+        pg.fill("[name='serie_rectificativa']", "F")
+        pg.click("button:has-text('Guardar ajustes')")
+        expect(pg.locator("#ajuste-serie_rectificativa-error")).to_contain_text("distinta")
+        pg.fill("[name='serie_rectificativa']", "R")
+        pg.fill("[name='stock_minimo']", "10")
+        captura(pg, "ajustes")
+        with pg.expect_navigation():  # al guardar, la página se recarga
+            pg.click("button:has-text('Guardar ajustes')")
+        ir(pg, "ajustes")
+        expect(pg.locator("[name='stock_minimo']")).to_have_value("10")
+    prueba("Ajustes: validación y guardado", pantalla_ajustes)
+
+    def acceso_api():
+        ir(pg, "api")
+        pg.click("button:has-text('Nueva clave')")
+        pg.fill("#clave-nombre", "Tienda online")
+        pg.locator("dialog .rejilla-casillas label:has-text('Clientes') input").check()
+        pg.click("dialog button:has-text('Crear clave')")
+        clave = pg.locator(".clave-generada").input_value()
+        assert clave.startswith("blush_") and len(clave) == 46, clave
+        captura(pg, "api-clave-creada")
+        with pg.expect_navigation():
+            pg.click("dialog button:has-text('Hecho')")
+        pg.wait_for_selector("main table")
+        expect(pg.locator("main tbody tr").first).to_contain_text(clave[:12])
+        captura(pg, "api")
+        respuesta = pg.request.get(URL + "api/api.php?recurso=clientes", headers={"X-API-Key": clave})
+        assert respuesta.ok and respuesta.json()["ok"], respuesta.text()
+    prueba("Acceso API: crear una clave, verla una sola vez y usarla", acceso_api)
+
+    def permisos_usuario():
+        ir(pg, "usuarios")
+        pg.locator("button[aria-label^='Editar «Pablo Gil»']").click()
+        pg.wait_for_selector(".permisos-tabla")
+        pg.locator(".permisos label.check input").uncheck()
+        pg.locator("input[aria-label='Compras: crear']").check()
+        expect(pg.locator("input[aria-label='Compras: ver']")).to_be_checked()
+        captura(pg, "usuario-permisos")
+        pg.click("dialog button[type=submit]")
+        expect(pg.locator("dialog[open]")).to_have_count(0)
+    prueba("Permisos por módulo: crear marca también ver", permisos_usuario)
+
+    if URL_INSTALADOR:
+        print("\nNavegador · asistente de instalación")
+        nuevo = navegador.new_context(viewport={"width": 1440, "height": 900})
+        pi = nuevo.new_page()
+        pi.on("pageerror", lambda e: errores_consola.append(str(e)))
+
+        def asistente():
+            pi.goto(URL_INSTALADOR)
+            pi.wait_for_url("**/instalar.html")
+            pi.wait_for_selector(".pasos")
+            captura(pi, "instalador-1-requisitos")
+            pi.click("button:has-text('Siguiente')")
+            pi.click("label.perfil:has-text('Tienda pequeña')")
+            captura(pi, "instalador-2-perfil")
+            pi.click("button:has-text('Siguiente')")
+            # MySQL con credenciales incorrectas: la prueba de conexión explica el error
+            pi.click("label.perfil:has-text('MySQL')")
+            pi.fill("#instalar-mysql-bd", "blush_erp")
+            pi.fill("#instalar-mysql-usuario", "usuario_inexistente")
+            pi.click("button:has-text('Probar conexión')")
+            expect(pi.locator(".resultado-prueba.fallo")).not_to_be_empty()
+            captura(pi, "instalador-3-mysql")
+            pi.click("label.perfil:has-text('SQLite')")
+            pi.click("button:has-text('Siguiente')")
+            pi.click("button:has-text('Siguiente')")
+            expect(pi.locator("#instalar-empresa-nombre-error")).to_contain_text("obligatorio")
+            pi.fill("#instalar-empresa-nombre", "Tienda Azahar S.L.")
+            pi.fill("#instalar-empresa-nif", "B46999888")
+            pi.fill("#instalar-admin-nombre", "Marta Ruiz")
+            pi.fill("#instalar-admin-email", "marta@azahar.test")
+            pi.fill("#instalar-admin-clave", "marta12345")
+            captura(pi, "instalador-4-empresa")
+            pi.click("button:has-text('Siguiente')")
+            captura(pi, "instalador-5-confirmar")
+            pi.click("button:has-text('Instalar')")
+            expect(pi.locator("h1")).to_have_text("Blush ERP está instalado")
+            captura(pi, "instalador-6-terminado")
+            pi.click("a:has-text('Ir al ERP')")
+            entrar_en(pi, "marta@azahar.test", "marta12345")
+            menu = pi.locator("#menu-lista a").all_inner_texts()
+            assert "Pedidos" in menu and "Facturas" in menu and "Compras" not in menu, menu
+            captura(pi, "instalado-tienda")
+        prueba("Asistente: perfil Tienda, error de MySQL, validación e instalación", asistente)
 
     print("\nNavegador · comercial (móvil, modo oscuro)")
     movil = navegador.new_context(viewport={"width": 390, "height": 844}, color_scheme="dark", is_mobile=True)

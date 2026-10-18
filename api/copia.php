@@ -2,7 +2,7 @@
 // Copias de seguridad: exportar toda la base de datos a JSON y restaurarla.
 // El formato es el mismo para SQLite y MySQL, así que una copia sirve para cambiar de motor.
 
-function exportarCopia(PDO $pdo, array $config, array $esquema): never {
+function datosCopia(PDO $pdo, array $config, array $esquema): array {
   $copia = [
     'aplicacion' => $config['app']['nombre'],
     'version'    => $config['app']['version'],
@@ -14,6 +14,12 @@ function exportarCopia(PDO $pdo, array $config, array $esquema): never {
   foreach (array_keys(tablas($esquema)) as $tabla) {
     $copia['tablas'][$tabla] = $pdo->query("SELECT * FROM $tabla ORDER BY id")->fetchAll();
   }
+  $copia['migraciones'] = array_column(migracionesAplicadas($pdo), 'id');
+  return $copia;
+}
+
+function exportarCopia(PDO $pdo, array $config, array $esquema): never {
+  $copia = datosCopia($pdo, $config, $esquema);
 
   registrar($pdo, 'copia', 'sistema', null, 'Copia de seguridad descargada');
   header('Content-Disposition: attachment; filename="copia-blush-' . date('Y-m-d-His') . '.json"');

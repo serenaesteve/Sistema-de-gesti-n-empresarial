@@ -1,0 +1,9 @@
+{
+  "id": "compras",
+  "nombre": "Compras",
+  "icono": "compras",
+  "descripcion": "Proveedores y pedidos de compra. Al recibir una compra, el stock sube.",
+  "recursos": ["proveedores", "compras"],
+  "dependencias": ["inventario"],
+  "version": "4.1"
+}

@@ -1,4 +1,5 @@
 // Panel de inicio: indicadores, ventas por mes y por producto, últimos pedidos y stock bajo.
+// Solo muestra lo de los módulos activos: con solo el CRM, el resumen es de clientes.
 
 import { api } from "../nucleo/js/api.js";
 import { h, icono, formato, insignia, cabeceraPagina } from "../nucleo/js/dom.js";
@@ -13,15 +14,17 @@ export async function vista(contexto) {
   const { esquema, puede } = contexto;
   const datos = await api("panel", { parametros: { periodo: periodoElegido } });
   const i = datos.indicadores;
+  const activo = (m) => datos.modulos.includes(m);
   const colores = esquema.pedidos.campos.estado.colores;
   const hoy = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
 
   const indicadores = [
-    { titulo: "Ventas", valor: formato.moneda(i.facturacion), nota: `${i.pedidos_periodo} pedidos · sin IVA`, enlace: "#/pedidos" },
-    { titulo: "Pedidos pendientes", valor: i.pedidos_pendientes, nota: "Pendientes de envío", enlace: "#/pedidos" },
-    { titulo: "Por facturar", valor: i.sin_facturar, nota: "Pedidos entregados sin factura", enlace: "#/pedidos", aviso: i.sin_facturar > 0 },
-    { titulo: "Compras en curso", valor: i.compras_pendientes, nota: "Pedidas a proveedores, sin recibir", enlace: "#/compras" },
-  ];
+    activo("ventas") && { titulo: "Ventas", valor: formato.moneda(i.facturacion), nota: `${i.pedidos_periodo} pedidos · sin IVA`, enlace: "#/pedidos" },
+    activo("ventas") && { titulo: "Pedidos pendientes", valor: i.pedidos_pendientes, nota: "Pendientes de envío", enlace: "#/pedidos" },
+    activo("facturacion") && { titulo: "Por facturar", valor: i.sin_facturar, nota: "Pedidos entregados sin factura", enlace: "#/pedidos", aviso: i.sin_facturar > 0 },
+    activo("compras") && { titulo: "Compras en curso", valor: i.compras_pendientes, nota: "Pedidas a proveedores, sin recibir", enlace: "#/compras" },
+    activo("crm") && { titulo: "Clientes activos", valor: i.clientes_activos, nota: `y ${i.clientes_potencial} potenciales`, enlace: "#/clientes" },
+  ].filter(Boolean).slice(0, 4);
 
   // Selector de periodo: afecta a «Ventas» y a «Ventas por producto»
   const selector = h("div", { class: "segmentado", role: "group", "aria-label": "Periodo" },
@@ -37,8 +40,10 @@ export async function vista(contexto) {
     cabeceraPagina({
       antetitulo: formato.capital(hoy),
       titulo: "Resumen",
-      descripcion: "Ventas, pedidos pendientes de gestión y productos por debajo del stock mínimo.",
-      acciones: [selector],
+      descripcion: activo("ventas")
+        ? "Ventas, pedidos pendientes de gestión y productos por debajo del stock mínimo."
+        : "Resumen de los módulos instalados.",
+      acciones: [activo("ventas") && selector],
     }),
 
     h("div", { class: "rejilla rejilla--indicadores" },
@@ -50,10 +55,11 @@ export async function vista(contexto) {
         ))),
 
     h("div", { class: "rejilla rejilla--panel" },
-      tarjetaMeses(datos.ventas_mes),
-      tarjetaVentas(datos.ventas_producto),
-      tarjetaPedidos(datos.ultimos_pedidos, colores),
-      tarjetaStock(datos.stock_bajo, datos.alerta_stock, puede("crear", "compras")),
+      activo("ventas") && tarjetaMeses(datos.ventas_mes),
+      activo("ventas") && tarjetaVentas(datos.ventas_producto),
+      activo("ventas") && tarjetaPedidos(datos.ultimos_pedidos, colores),
+      activo("crm") && !activo("ventas") && tarjetaClientes(datos.clientes_recientes, esquema.clientes.campos.estado.colores),
+      activo("inventario") && tarjetaStock(datos.stock_bajo, datos.alerta_stock, puede("crear", "compras")),
     ),
   );
 }
@@ -135,5 +141,21 @@ function tarjetaStock(productos, alerta, puedeComprar) {
           );
         }))
       : h("p", { class: "nota" }, "Ningún producto por debajo del stock mínimo."),
+  );
+}
+
+// Con solo el CRM: los últimos clientes dados de alta
+function tarjetaClientes(clientes, colores) {
+  return h("div", { class: "tarjeta vidrio" },
+    h("h2", {}, "Últimos clientes", h("a", { href: "#/clientes" }, "Ver todos")),
+    clientes.length
+      ? h("ul", { class: "lista" }, clientes.map((c) =>
+          h("li", {},
+            h("div", { class: "principal" },
+              h("strong", {}, h("a", { href: `#/clientes/${c.id}` }, c.nombre)),
+              h("small", {}, [c.empresa, c.ciudad].filter(Boolean).join(" · ") || "—")),
+            insignia(c.estado, colores[c.estado]),
+          )))
+      : h("p", { class: "nota" }, "Todavía no hay clientes."),
   );
 }

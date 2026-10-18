@@ -1,0 +1,9 @@
+{
+  "id": "crm",
+  "nombre": "CRM",
+  "icono": "clientes",
+  "descripcion": "Cartera de clientes con estado (potencial, activo, inactivo) y ficha de cada cliente.",
+  "recursos": ["clientes"],
+  "dependencias": [],
+  "version": "4.1"
+}

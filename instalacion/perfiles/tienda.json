@@ -1,0 +1,8 @@
+{
+  "id": "tienda",
+  "orden": 2,
+  "nombre": "Tienda pequeña",
+  "descripcion": "Vende productos de su almacén y emite facturas. Compra poco y no necesita gestionar proveedores.",
+  "modulos": ["crm", "inventario", "ventas", "facturacion"],
+  "motor": "sqlite"
+}

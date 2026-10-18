@@ -3,7 +3,8 @@
 // Es la única fuente de verdad: a partir de aquí se crean las tablas, se valida lo que
 // llega a la API, se comprueban los permisos y el frontend genera tablas y formularios.
 //
-// Tipos de campo: texto, email, tel, clave, opcion, moneda, entero, fecha, relacion.
+// Tipos de campo: texto, largo (texto de varias líneas), email, tel, clave, opcion, moneda,
+// entero, fecha, relacion, permisos (casillas por módulo y acción, en JSON).
 //
 // Opciones de módulo:
 //   icono         nombre del icono SVG del menú (nucleo/js/dom.js)
@@ -62,6 +63,8 @@ return [
         'opciones' => ['potencial', 'activo', 'inactivo'],
         'colores'  => ['potencial' => 'ambar', 'activo' => 'verde', 'inactivo' => 'gris'],
       ],
+      // Añadido en la v4.1 (migración 003)
+      'notas'     => ['etiqueta' => 'Notas',     'tipo' => 'largo'],
     ],
   ],
 
@@ -230,7 +233,10 @@ return [
         'opciones' => ['admin', 'comercial'],
         'colores'  => ['admin' => 'rosa', 'comercial' => 'azul'],
       ],
+      // Permisos por módulo para el rol comercial (v4.1, migración 005). Vacío = los del rol.
+      'permisos' => ['etiqueta' => 'Permisos por módulo', 'tipo' => 'permisos'],
     ],
+    'lista' => ['nombre', 'email', 'rol'],
   ],
 
 ];

@@ -1,0 +1,11 @@
+{
+  "id": "nucleo",
+  "nombre": "Núcleo y administración",
+  "icono": "usuarios",
+  "descripcion": "Usuarios y permisos, panel, registro de operaciones, ajustes, módulos, diagnóstico del sistema y copias de seguridad.",
+  "recursos": ["usuarios"],
+  "vistas": ["panel", "registro", "sistema", "ajustes", "modulos", "api"],
+  "dependencias": [],
+  "obligatorio": true,
+  "version": "4.1"
+}

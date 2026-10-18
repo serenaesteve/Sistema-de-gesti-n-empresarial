@@ -1,0 +1,8 @@
+{
+  "id": "consultoria",
+  "orden": 1,
+  "nombre": "Consultoría / agencia",
+  "descripcion": "Empresa de servicios que solo necesita gestionar su cartera de clientes.",
+  "modulos": ["crm"],
+  "motor": "sqlite"
+}

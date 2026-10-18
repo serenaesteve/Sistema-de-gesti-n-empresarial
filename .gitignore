@@ -1,3 +1,5 @@
 # Base de datos local (se crea sola al abrir la aplicación)
 datos/*.sqlite
 datos/*.sqlite-journal
+datos/instalacion.json
+datos/copias/

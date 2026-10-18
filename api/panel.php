@@ -54,6 +54,7 @@ function panel(PDO $pdo, array $esquema): array {
     'ultimos_pedidos' => array_map(fn($f) => [...$f, 'id' => (int)$f['id'], 'productos' => (int)$f['productos'], 'total' => round((float)$f['total'], 2)], $ultimos),
     'stock_bajo'      => array_map(fn($f) => [...$f, 'id' => (int)$f['id'], 'stock' => (int)$f['stock'], 'en_camino' => (int)$f['en_camino']], $stockBajo),
     'alerta_stock'    => $alerta,
+    'clientes_recientes' => $pdo->query('SELECT id, nombre, empresa, ciudad, estado FROM clientes ORDER BY id DESC LIMIT 5')->fetchAll(),
   ];
 }
 

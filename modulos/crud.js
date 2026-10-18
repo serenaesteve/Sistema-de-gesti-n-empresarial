@@ -5,7 +5,7 @@
 import { api, urlApi } from "../nucleo/js/api.js";
 import { h, icono, formato, genero, hoyIso, insignia, cabeceraPagina, estadoVacio, aviso, confirmar } from "../nucleo/js/dom.js";
 
-export async function vista({ recurso, modulo, señal, puede, consulta }) {
+export async function vista({ recurso, modulo, señal, puede, consulta, esquema }) {
   const columnas = columnasDe(modulo);
   const campoFecha = Object.keys(modulo.campos).find((c) => modulo.campos[c].tipo === "fecha");
   const estado = { filas: [], total: 0, pagina: 1, paginas: 1, por: 15, q: "", desde: "", hasta: "", orden: { clave: "id", asc: false } };
@@ -142,11 +142,14 @@ export async function vista({ recurso, modulo, señal, puede, consulta }) {
     const relaciones = [
       ...Object.entries(modulo.campos),
       ...Object.entries(modulo.lineas?.campos ?? {}),
-    ].filter(([, def]) => def.tipo === "relacion");
+    ].filter(([, def]) => def.tipo === "relacion" || def.tipo === "permisos");
     let opciones;
     try {
+      // Relaciones: registros de la otra tabla. Permisos: la lista de módulos
       opciones = Object.fromEntries(await Promise.all(
-        relaciones.map(async ([campo, def]) => [campo, await api(def.tabla, { parametros: { orden: def.mostrar, dir: "asc" } })])));
+        relaciones.map(async ([campo, def]) => [campo, def.tipo === "permisos"
+          ? await api("modulos")
+          : await api(def.tabla, { parametros: { orden: def.mostrar, dir: "asc" } })])));
     } catch (error) {
       mostrarError(error);
       return;
@@ -156,11 +159,11 @@ export async function vista({ recurso, modulo, señal, puede, consulta }) {
     const campos = Object.entries(modulo.campos).filter(([, def]) => !def.auto);
     const controles = campos.map(([campo, def]) => {
       const inicial = fila ? fila[campo] : (def.defecto === "hoy" ? hoyIso() : def.defecto);
-      const control = crearControl(campo, def, inicial, opciones[campo], !!fila);
+      const control = crearControl(campo, def, inicial, opciones[campo], !!fila, esquema);
       errores[campo] = h("span", { class: "error", id: `error-${campo}` });
       control.setAttribute("aria-describedby", `error-${campo}`);
       const obligatorio = def.obligatorio && !(def.tipo === "clave" && fila);
-      return h("div", { class: "campo" },
+      return h("div", { class: ["largo", "permisos"].includes(def.tipo) ? "campo campo--ancho" : "campo" },
         h("label", { for: control.id }, def.etiqueta, obligatorio && h("span", { class: "obligatorio", "aria-hidden": "true" }, " *")),
         control,
         errores[campo]);
@@ -494,8 +497,14 @@ function celda(columna, fila, modulo, recurso) {
 
 // ---------- Controles del formulario ----------
 
-function crearControl(campo, def, valor, opciones = [], editando = false) {
+function crearControl(campo, def, valor, opciones = [], editando = false, esquema = {}) {
   const comunes = { id: `campo-${campo}`, name: campo, required: !!def.obligatorio && !(def.tipo === "clave" && editando) };
+
+  if (def.tipo === "largo") {
+    return h("textarea", { ...comunes, rows: "4", maxlength: "5000" }, valor ?? "");
+  }
+
+  if (def.tipo === "permisos") return controlPermisos(comunes, valor, opciones, esquema);
 
   if (def.tipo === "opcion") {
     return h("select", comunes, def.opciones.map((o) =>
@@ -525,4 +534,57 @@ function crearControl(campo, def, valor, opciones = [], editando = false) {
     fecha: { type: "date" },
   };
   return h("input", { ...comunes, ...(tipos[def.tipo] ?? { type: "text", maxlength: "255" }), value: valor ?? "" });
+}
+
+// Permisos por módulo de un usuario: casillas Ver / Crear / Editar / Borrar por cada módulo.
+// «Usar los permisos del rol» deja el campo vacío y se aplican los permisos por defecto del rol.
+// El valor viaja como JSON en un campo oculto: {"crm": ["ver", "crear"], …}
+function controlPermisos(comunes, valor, modulos, esquema) {
+  const ACCIONES = ["ver", "crear", "editar", "borrar"];
+  const oculto = h("input", { type: "hidden", name: comunes.name });
+  const propios = valor && typeof valor === "object";
+  const usarRol = h("input", { type: "checkbox", checked: !propios });
+  const lista = modulos.filter((m) => !m.obligatorio);
+  // Permisos por defecto del rol comercial (los del primer recurso de cada módulo)
+  const porDefecto = (m) => esquema[m.recursos[0]]?.permisos?.comercial ?? [];
+
+  const casillas = {};
+  const filas = lista.map((m) => h("tr", {},
+    h("th", { scope: "row" }, m.nombre, !m.activo && h("small", { class: "nota" }, " (inactivo)")),
+    ACCIONES.map((accion) => {
+      const casilla = h("input", {
+        type: "checkbox", "aria-label": `${m.nombre}: ${accion}`,
+        checked: (propios ? valor[m.id] ?? [] : porDefecto(m)).includes(accion),
+        onchange: (e) => {
+          // Quien crea, edita o borra también ve; sin «ver» no hay nada más
+          if (accion !== "ver" && e.target.checked) casillas[m.id].ver.checked = true;
+          if (accion === "ver" && !e.target.checked) ACCIONES.forEach((a) => (casillas[m.id][a].checked = false));
+          actualizar();
+        },
+      });
+      (casillas[m.id] ??= {})[accion] = casilla;
+      return h("td", {}, casilla);
+    })));
+
+  const tabla = h("table", { class: "permisos-tabla" },
+    h("thead", {}, h("tr", {}, h("th", {}, "Módulo"), ACCIONES.map((a) => h("th", {}, a[0].toUpperCase() + a.slice(1))))),
+    h("tbody", {}, filas));
+
+  function actualizar() {
+    tabla.classList.toggle("deshabilitada", usarRol.checked);
+    tabla.querySelectorAll("input").forEach((c) => (c.disabled = usarRol.checked));
+    oculto.value = usarRol.checked ? "" : JSON.stringify(Object.fromEntries(lista.map((m) =>
+      [m.id, ACCIONES.filter((a) => casillas[m.id][a].checked)])));
+  }
+  usarRol.addEventListener("change", () => {
+    if (usarRol.checked) lista.forEach((m) => ACCIONES.forEach((a) => (casillas[m.id][a].checked = porDefecto(m).includes(a))));
+    actualizar();
+  });
+  actualizar();
+
+  return h("div", { id: comunes.id, class: "permisos" },
+    h("label", { class: "check" }, usarRol, h("span", {}, "Usar los permisos por defecto del rol comercial")),
+    tabla,
+    h("small", { class: "ayuda" }, "Solo se aplican a usuarios con rol comercial; administración puede hacerlo todo."),
+    oculto);
 }

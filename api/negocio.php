@@ -153,7 +153,7 @@ function facturar(PDO $pdo, array $config, int $pedidoId, ?string $fecha = null,
   $iva = (int)$config['empresa']['iva'];
   $base = round(array_sum(array_column($lineas, 'importe')), 2);
   $cuota = round($base * $iva / 100, 2);
-  $numero = siguienteNumero($pdo, 'F' . substr($fecha, 0, 4) . '-');
+  $numero = siguienteNumero($pdo, ($config['series']['factura'] ?? 'F') . substr($fecha, 0, 4) . '-');
 
   $id = insertarFactura($pdo, [
     'numero' => $numero, 'tipo' => 'ordinaria', 'fecha' => $fecha, 'pedido_id' => $pedidoId,
@@ -185,7 +185,7 @@ function rectificar(PDO $pdo, array $config, int $facturaId, string $motivo, ?st
   $lineas = array_map(fn($l) => [...$l, 'cantidad' => -(int)$l['cantidad'], 'importe' => -(float)$l['importe']], $consulta->fetchAll());
 
   $fecha ??= date('Y-m-d');
-  $numero = siguienteNumero($pdo, 'R' . substr($fecha, 0, 4) . '-');
+  $numero = siguienteNumero($pdo, ($config['series']['rectificativa'] ?? 'R') . substr($fecha, 0, 4) . '-');
 
   $id = insertarFactura($pdo, [
     'numero' => $numero, 'tipo' => 'rectificativa', 'fecha' => $fecha,

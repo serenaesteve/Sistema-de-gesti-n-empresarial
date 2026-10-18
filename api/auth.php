@@ -3,11 +3,16 @@
 //
 // Roles:
 //   admin      puede hacerlo todo
-//   comercial  lo que indique 'permisos' => ['comercial' => [...]] en cada módulo del esquema
+//   comercial  lo que indique su campo «permisos» (por módulo) o, si está vacío,
+//              'permisos' => ['comercial' => [...]] de cada módulo del esquema
+//   api        otro programa que entra con una clave (X-API-Key): solo los recursos de la clave,
+//              lectura y, si la clave lo permite, alta y edición; nunca borrar ni administración
 //
-// Vistas especiales: el panel y el registro los ven todos; el diagnóstico del sistema, solo admin.
+// Vistas especiales: el panel y el registro los ven todos; sistema, ajustes y módulos, solo admin.
+// Además, un recurso solo está disponible si su módulo está activo (ver api/instalacion.php).
 
 const VISTAS_COMERCIAL = ['panel', 'registro'];
+const VISTAS = ['panel', 'registro', 'sistema', 'ajustes', 'modulos', 'api'];
 
 $GLOBALS['usuario_actual'] = null;
 
@@ -29,11 +34,15 @@ function usuarioActual(): ?array {
 // si lo borran o le cambian el rol, el cambio se aplica al momento.
 function cargarUsuario(PDO $pdo): ?array {
   if (empty($_SESSION['usuario_id'])) return null;
-  $consulta = $pdo->prepare('SELECT id, nombre, email, rol FROM usuarios WHERE id = ?');
+  // SELECT *: antes de actualizar a la v4.1 la columna «permisos» aún no existe
+  $consulta = $pdo->prepare('SELECT * FROM usuarios WHERE id = ?');
   $consulta->execute([$_SESSION['usuario_id']]);
-  $usuario = $consulta->fetch() ?: null;
-  if ($usuario) $usuario['id'] = (int)$usuario['id'];
-  else unset($_SESSION['usuario_id']);
+  $fila = $consulta->fetch() ?: null;
+  $usuario = $fila ? [
+    'id' => (int)$fila['id'], 'nombre' => $fila['nombre'], 'email' => $fila['email'], 'rol' => $fila['rol'],
+    'permisos' => isset($fila['permisos']) ? json_decode((string)$fila['permisos'], true) : null,
+  ] : null;
+  if (!$usuario) unset($_SESSION['usuario_id']);
   return $GLOBALS['usuario_actual'] = $usuario;
 }
 
@@ -41,13 +50,34 @@ function exigirSesion(PDO $pdo): array {
   return cargarUsuario($pdo) ?? fallar('Tu sesión ha caducado. Vuelve a iniciar sesión.', 401);
 }
 
+function moduloActivo(string $recurso): bool {
+  $modulo = $GLOBALS['recurso_modulo'][$recurso] ?? null;
+  return $modulo === null || in_array($modulo, $GLOBALS['modulos_activos'] ?? [], true);
+}
+
 function puede(array $esquema, array $usuario, string $accion, string $recurso): bool {
-  if ($usuario['rol'] === 'admin') return true;
-  if (isset($esquema[$recurso])) return in_array($accion, $esquema[$recurso]['permisos'][$usuario['rol']] ?? [], true);
+  if (!moduloActivo($recurso)) return false;
+  if ($usuario['rol'] === 'admin') return isset($esquema[$recurso]) || in_array($recurso, VISTAS, true);
+  if ($usuario['rol'] === 'api') {
+    return isset($esquema[$recurso]) && in_array($recurso, $usuario['recursos'], true)
+      && ($accion === 'ver' || ($usuario['escritura'] && in_array($accion, ['crear', 'editar'], true)));
+  }
+  if (isset($esquema[$recurso])) {
+    // Permisos propios del usuario, por módulo (los recursos del núcleo son solo de administración)
+    if (is_array($usuario['permisos'] ?? null)) {
+      $modulo = $GLOBALS['recurso_modulo'][$recurso] ?? null;
+      return $modulo !== 'nucleo' && in_array($accion, $usuario['permisos'][$modulo] ?? [], true);
+    }
+    return in_array($accion, $esquema[$recurso]['permisos'][$usuario['rol']] ?? [], true);
+  }
   return $accion === 'ver' && in_array($recurso, VISTAS_COMERCIAL, true);
 }
 
 function exigirPermiso(array $esquema, array $usuario, string $accion, string $recurso): void {
+  if (!moduloActivo($recurso)) {
+    $modulo = $GLOBALS['catalogo'][$GLOBALS['recurso_modulo'][$recurso]]['nombre'] ?? $recurso;
+    fallar("El módulo $modulo no está activo. Actívalo en Administración → Módulos.", 403);
+  }
   if (!puede($esquema, $usuario, $accion, $recurso)) {
     fallar('Tu rol (' . $usuario['rol'] . ') no tiene permiso para esta acción.', 403);
   }
@@ -56,7 +86,7 @@ function exigirPermiso(array $esquema, array $usuario, string $accion, string $r
 // Mapa recurso => acciones permitidas, para que el frontend oculte lo que no se puede hacer.
 function permisosDe(array $esquema, array $usuario): array {
   $permisos = [];
-  foreach (array_merge(array_keys($esquema), ['panel', 'registro', 'sistema']) as $recurso) {
+  foreach (array_merge(array_keys($esquema), VISTAS) as $recurso) {
     $permisos[$recurso] = array_values(array_filter(['ver', 'crear', 'editar', 'borrar'],
       fn($accion) => puede($esquema, $usuario, $accion, $recurso)));
   }

@@ -1,0 +1,8 @@
+{
+  "id": "distribuidora",
+  "orden": 3,
+  "nombre": "Distribuidora (ERP completo)",
+  "descripcion": "Compra a proveedores, gestiona almacén, vende y factura. Varios usuarios trabajando a la vez.",
+  "modulos": ["crm", "inventario", "ventas", "facturacion", "compras"],
+  "motor": "mysql"
+}

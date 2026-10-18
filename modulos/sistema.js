@@ -3,6 +3,7 @@
 
 import { api, urlApi } from "../nucleo/js/api.js";
 import { h, icono, insignia, cabeceraPagina, descargar, celdaMd, confirmar, aviso } from "../nucleo/js/dom.js";
+import { reinstalar } from "./reinstalar.js";
 
 const ESTADOS = {
   ok:    { icono: "ok",     texto: "Correcto" },
@@ -11,8 +12,12 @@ const ESTADOS = {
 };
 
 export async function vista() {
-  const [datos, seguridad] = await Promise.all([api("sistema"), comprobarDescarga()]);
-  const comprobaciones = [...datos.comprobaciones, seguridad];
+  const [datos, ...seguridad] = await Promise.all([
+    api("sistema"),
+    comprobarDescarga("datos/erp.sqlite", "la base de datos"),
+    comprobarDescarga("datos/instalacion.json", "la configuración de la instalación (incluye la conexión a MySQL)"),
+  ]);
+  const comprobaciones = [...datos.comprobaciones, ...seguridad];
   const resumen = { ok: 0, aviso: 0, error: 0 };
   comprobaciones.forEach((c) => resumen[c.estado]++);
 
@@ -26,7 +31,11 @@ export async function vista() {
       descripcion: "Comprobación en directo del sistema operativo, el servidor web, PHP y la base de datos que necesita el ERP-CRM.",
       acciones: [
         h("button", { class: "boton", type: "button", onclick: async () => raiz.replaceWith(await vista()) }, icono("recargar"), "Volver a comprobar"),
-        h("button", { class: "boton boton--principal", type: "button", onclick: () => exportarMarkdown(comprobaciones, resumen) }, icono("descargar"), "Exportar informe"),
+        h("button", { class: "boton", type: "button", onclick: () => exportarMarkdown(comprobaciones, resumen) }, icono("descargar"), "Exportar diagnóstico"),
+        h("button", { class: "boton boton--principal", type: "button", onclick: async () => {
+          const { markdown } = await api("informe");
+          descargar(`informe-instalacion-${new Date().toLocaleDateString("sv-SE")}.md`, markdown);
+        } }, icono("descargar"), "Informe de instalación"),
       ],
     }),
 
@@ -37,6 +46,11 @@ export async function vista() {
     ),
 
     tarjetaCopias(),
+    h("div", { class: "tarjeta vidrio copias zona-peligro" },
+      h("div", {},
+        h("h2", {}, "Reinstalar"),
+        h("p", { class: "nota" }, "Guarda una copia de seguridad en datos/copias/, retira la instalación actual y vuelve al asistente.")),
+      h("button", { class: "boton boton--peligro", type: "button", onclick: reinstalar }, "Reinstalar…")),
 
     [...grupos].map(([grupo, lista]) =>
       h("div", { class: "tarjeta vidrio" },
@@ -95,19 +109,19 @@ function tarjetaCopias() {
   );
 }
 
-// Esta prueba solo se puede hacer desde fuera: pedimos el archivo de la base de datos
-// como lo haría cualquier visitante. Si responde 200, cualquiera puede descargarla.
-async function comprobarDescarga() {
-  const base = { grupo: "Seguridad", nombre: "Descarga directa de datos/erp.sqlite" };
+// Esta prueba solo se puede hacer desde fuera: pedimos el archivo como lo haría cualquier
+// visitante. Si responde 200, cualquiera puede descargarlo.
+async function comprobarDescarga(ruta, que) {
+  const base = { grupo: "Seguridad", nombre: `Descarga directa de ${ruta}` };
   try {
-    const respuesta = await fetch("datos/erp.sqlite", { method: "HEAD", cache: "no-store" });
+    const respuesta = await fetch(ruta, { method: "HEAD", cache: "no-store" });
     if (respuesta.ok) {
       return {
         ...base, valor: `HTTP ${respuesta.status} · se puede descargar`, estado: "error",
         nota: "Apache ignora datos/.htaccess (AllowOverride None). Solución: añadir <Directory …/datos> Require all denied </Directory> al sitio de Apache, o mover la base de datos fuera de /var/www/html.",
       };
     }
-    return { ...base, valor: `HTTP ${respuesta.status} · bloqueada`, estado: "ok", nota: "La base de datos no es accesible desde el navegador." };
+    return { ...base, valor: `HTTP ${respuesta.status} · no accesible`, estado: "ok", nota: `${que[0].toUpperCase()}${que.slice(1)} no se puede descargar desde el navegador.` };
   } catch {
     return { ...base, valor: "no comprobado", estado: "aviso", nota: "No se pudo realizar la petición de prueba." };
   }

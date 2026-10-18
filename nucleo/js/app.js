@@ -10,15 +10,29 @@ import * as crud from "../../modulos/crud.js";
 import * as registro from "../../modulos/registro.js";
 import * as sistema from "../../modulos/sistema.js";
 import * as fichaCliente from "../../modulos/ficha-cliente.js";
+import * as modulos from "../../modulos/modulos.js";
+import * as ajustes from "../../modulos/ajustes.js";
+import * as clavesApi from "../../modulos/claves-api.js";
+import * as actualizar from "../../modulos/actualizar.js";
 
 // Vistas propias; el resto de módulos del esquema usan la vista genérica crud.
-const especiales = { panel, registro, sistema };
+const especiales = { panel, registro, sistema, modulos, ajustes, api: clavesApi };
 // Vistas de detalle: #/clientes/3
 const fichas = { clientes: fichaCliente };
 
 const app = { esquema: {}, menu: [], info: null, usuario: null, permisos: {} };
 let turno = 0;             // evita pintar una vista antigua si el usuario navega rápido
 let controlador = null;    // permite a cada vista limpiar sus eventos al salir
+
+// Si el ERP no está instalado, se abre el asistente de instalación
+const estado = await api("estado").catch(() => ({ instalado: true }));
+if (!estado.instalado) {
+  location.replace("instalar.html");
+  await new Promise(() => {}); // detiene el arranque mientras el navegador cambia de página
+}
+
+// Desarrollo y pruebas se distinguen a simple vista de la explotación (uso real)
+if (estado.entorno && estado.entorno !== "explotacion") document.body.dataset.entorno = estado.entorno;
 
 await incluir();
 prepararTema();
@@ -30,6 +44,10 @@ const sesion = await api("sesion").catch((error) => {
 
 if (!sesion.usuario) {
   mostrarAcceso();
+} else if (estado.actualizacion) {
+  // Actualización pendiente: el administrador la aplica; el resto ve «en mantenimiento»
+  document.body.classList.add("sin-sesion");
+  document.getElementById("aplicacion").replaceChildren(await actualizar.vista({ usuario: sesion.usuario }));
 } else {
   app.usuario = sesion.usuario;
   app.permisos = sesion.permisos;
@@ -144,6 +162,10 @@ function pintarUsuario() {
     `${entorno.so} · ${entorno.servidor.replace(/\s*\(.*\)$/, "")} · PHP ${entorno.php} · ${entorno.bd}`,
   );
   document.getElementById("pie-usuario").textContent = `${usuario.nombre} · ${rol}`;
+  if (document.body.dataset.entorno) {
+    const nombre = { desarrollo: "Desarrollo", pruebas: "Pruebas" }[document.body.dataset.entorno];
+    document.querySelector("header .logo").after(h("span", { class: "insignia-entorno", title: app.info.entornos[document.body.dataset.entorno] }, nombre));
+  }
   document.getElementById("menu-empresa").textContent = app.info.empresa.nombre;
   document.getElementById("menu-version").textContent = `ERP-CRM · versión ${aplicacion.version}`;
 

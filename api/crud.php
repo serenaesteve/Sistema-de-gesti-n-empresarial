@@ -270,6 +270,7 @@ function normalizar(array $modulo, array $fila): array {
   );
   foreach ($tipos as $campo => $tipo) {
     if ($tipo === 'clave') { unset($fila[$campo]); continue; }
+    if ($tipo === 'permisos') { $fila[$campo] = isset($fila[$campo]) ? json_decode((string)$fila[$campo], true) : null; continue; }
     if (!isset($fila[$campo])) continue;
     if ($tipo === 'moneda') $fila[$campo] = round((float)$fila[$campo], 2);
     if ($tipo === 'entero' || $tipo === 'relacion') $fila[$campo] = (int)$fila[$campo];
@@ -323,6 +324,24 @@ function validarCampos(PDO $pdo, array $campos, array $entrada, bool $editando, 
       continue;
     }
 
+    // Permisos por módulo: {"ventas": ["ver", "crear"], …} (como texto JSON o como objeto)
+    if ($def['tipo'] === 'permisos') {
+      $permisos = is_string($valor) ? json_decode($valor, true) : $valor;
+      $modulos = array_diff(array_keys($GLOBALS['catalogo'] ?? []), ['nucleo']);
+      $limpios = [];
+      if (!is_array($permisos)) $error('Formato de permisos no válido');
+      else foreach ($permisos as $modulo => $acciones) {
+        if (!in_array($modulo, $modulos, true) || !is_array($acciones) || array_diff($acciones, ['ver', 'crear', 'editar', 'borrar'])) {
+          $error("Permisos no válidos para «{$modulo}»");
+          break;
+        }
+        // Quien puede crear, editar o borrar también tiene que poder ver
+        if ($acciones) $limpios[$modulo] = array_values(array_unique(array_merge(['ver'], $acciones)));
+      }
+      $limpio[$campo] = json_encode((object)$limpios);
+      continue;
+    }
+
     if (!is_scalar($valor)) {
       $error('Valor no válido');
       continue;
@@ -350,6 +369,11 @@ function validarCampos(PDO $pdo, array $campos, array $entrada, bool $editando, 
         } else {
           $valor = (int)$valor;
         }
+        break;
+
+      case 'largo':
+        $valor = (string)$valor;
+        if (mb_strlen($valor) > 5000) $error('Máximo 5000 caracteres');
         break;
 
       case 'fecha':
@@ -392,7 +416,7 @@ function exportarCsv(PDO $pdo, array $esquema, string $tabla): never {
 
   $columnas = ['id' => 'Nº'];
   foreach ($modulo['campos'] as $campo => $def) {
-    if ($def['tipo'] === 'clave') continue;
+    if (in_array($def['tipo'], ['clave', 'permisos'], true)) continue;
     $columnas[$def['tipo'] === 'relacion' ? nombreRelacion($campo) : $campo] = $def['etiqueta'];
   }
   if (!empty($modulo['lineas'])) $columnas['lineas'] = $modulo['lineas']['etiqueta'];
@@ -437,6 +461,14 @@ function cambios(array $modulo, array $antes, array $despues, array $enviados): 
   foreach ($modulo['campos'] as $campo => $def) {
     if ($def['tipo'] === 'clave') {
       if (isset($enviados[$campo])) $partes[] = 'contraseña cambiada';
+      continue;
+    }
+    if ($def['tipo'] === 'permisos') {
+      if (json_encode($antes[$campo] ?? null) !== json_encode($despues[$campo] ?? null)) $partes[] = 'permisos por módulo cambiados';
+      continue;
+    }
+    if ($def['tipo'] === 'largo') {
+      if (($antes[$campo] ?? '') !== ($despues[$campo] ?? '')) $partes[] = mb_strtolower($def['etiqueta']) . ' modificadas';
       continue;
     }
     $clave = $def['tipo'] === 'relacion' ? nombreRelacion($campo) : $campo;

@@ -89,13 +89,47 @@ function diagnostico(array $config, array $esquema): array {
   $anotar('Servidor web y PHP', 'date.timezone (php.ini)', $zona ?: 'sin definir', $definida ? 'ok' : 'aviso',
     $definida ? '' : 'php.ini no define la zona horaria. La aplicación usa ' . $config['zona_horaria'] . ' por su cuenta, pero conviene definir date.timezone = Europe/Madrid.');
 
+  // En explotación, mostrar errores o no usar HTTPS pasan de aviso a error
+  $explotacion = ($config['instalacion']['entorno'] ?? null) === 'explotacion';
   $errores = filter_var(ini_get('display_errors'), FILTER_VALIDATE_BOOLEAN);
-  $anotar('Servidor web y PHP', 'display_errors', $errores ? 'activado' : 'desactivado', $errores ? 'aviso' : 'ok',
+  $anotar('Servidor web y PHP', 'display_errors', $errores ? 'activado' : 'desactivado', $errores ? ($explotacion ? 'error' : 'aviso') : 'ok',
     $errores ? 'En producción debe estar desactivado: muestra rutas y detalles internos.' : '');
 
   $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
-  $anotar('Servidor web y PHP', 'HTTPS', $https ? 'activo' : 'no', $https ? 'ok' : 'aviso',
+  $anotar('Servidor web y PHP', 'HTTPS', $https ? 'activo' : 'no', $https ? 'ok' : ($explotacion ? 'error' : 'aviso'),
     $https ? '' : 'Aceptable en local; en producción el ERP debe servirse por HTTPS.');
+
+  // --- Instalación (RA2) ---------------------------------------------------
+  $instalacion = $config['instalacion'] ?? null;
+  if ($instalacion) {
+    $anotar('Instalación', 'Versión instalada', ($instalacion['version'] ?? '?') . ' (código ' . VERSION_APP . ')',
+      version_compare($instalacion['version'] ?? '0', VERSION_APP, '>=') ? 'ok' : 'aviso',
+      version_compare($instalacion['version'] ?? '0', VERSION_APP, '>=') ? '' : 'La base de datos se migró automáticamente al nuevo código.');
+    $perfil = perfiles()[$instalacion['perfil']]['nombre'] ?? ($instalacion['perfil'] === 'personalizado' ? 'Personalizada' : $instalacion['perfil']);
+    $anotar('Instalación', 'Perfil', $perfil . (!empty($instalacion['migrada_desde']) ? ' (adoptada desde la v' . $instalacion['migrada_desde'] . ')' : ''), 'ok');
+    $anotar('Instalación', 'Fecha', date('d/m/Y H:i', strtotime($instalacion['fecha'])), 'ok');
+    $catalogo = catalogoModulos();
+    $nombres = array_map(fn($m) => $catalogo[$m]['nombre'] ?? $m, $config['modulos_activos'] ?? []);
+    $anotar('Instalación', 'Módulos activos', count($nombres) . ' de ' . count($catalogo) . ': ' . implode(', ', $nombres), 'ok');
+    $recomendado = perfiles()[$instalacion['perfil']]['motor'] ?? null;
+    $anotar('Instalación', 'Motor de base de datos', $instalacion['motor'] . ($recomendado ? " (recomendado para el perfil: $recomendado)" : ''),
+      !$recomendado || $recomendado === $instalacion['motor'] ? 'ok' : 'aviso',
+      !$recomendado || $recomendado === $instalacion['motor'] ? '' : 'Con varios usuarios a la vez conviene MySQL: se puede migrar con una copia de seguridad.');
+    $entorno = $instalacion['entorno'] ?? '?';
+    $anotar('Instalación', 'Entorno', $entorno, 'ok', ENTORNOS[$entorno] ?? '');
+    try {
+      $pdoMig = conectar($config, $esquema);
+      $aplicadas = migracionesAplicadas($pdoMig);
+      $anotar('Instalación', 'Migraciones aplicadas', count($aplicadas) . ' de ' . count(migracionesDisponibles()) . ($aplicadas ? ' · última: ' . end($aplicadas)['id'] : ''), 'ok');
+      if ($explotacion) {
+        $demo = (int)$pdoMig->query("SELECT COUNT(*) FROM usuarios WHERE email LIKE '%@blush.test'")->fetchColumn();
+        $anotar('Instalación', 'Cuentas de demostración', $demo ? "$demo activas" : 'ninguna', $demo ? 'aviso' : 'ok',
+          $demo ? 'En explotación conviene borrar o cambiar la contraseña de las cuentas @blush.test.' : '');
+      }
+    } catch (Throwable $e) {
+      $anotar('Instalación', 'Migraciones aplicadas', 'no comprobado', 'aviso', $e->getMessage());
+    }
+  }
 
   // --- Base de datos -------------------------------------------------------
   try {

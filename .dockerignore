@@ -1,4 +1,6 @@
 .git
 datos/*.sqlite
+datos/instalacion.json
 docs
 tests
+datos/copias/

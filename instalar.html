@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Instalación · Blush ERP</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23A3154A'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Georgia' font-style='italic' font-size='17' fill='white'%3Eb%3C/text%3E%3C/svg%3E">
+    <script>
+      try { const tema = localStorage.getItem("blush-tema"); if (tema) document.documentElement.dataset.theme = tema; } catch (e) {}
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap">
+    <link rel="stylesheet" href="nucleo/estilo/general.css">
+  </head>
+  <body class="sin-sesion">
+    <main id="aplicacion" tabindex="-1"><div class="cargando">Comprobando el servidor</div></main>
+    <div id="avisos" class="avisos" aria-live="polite"></div>
+    <script type="module" src="nucleo/js/instalador.js"></script>
+  </body>
+</html>

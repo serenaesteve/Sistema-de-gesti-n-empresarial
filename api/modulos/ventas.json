@@ -1,0 +1,9 @@
+{
+  "id": "ventas",
+  "nombre": "Ventas",
+  "icono": "pedidos",
+  "descripcion": "Pedidos de clientes con varias líneas. Guardan el precio de cada venta y descuentan stock.",
+  "recursos": ["pedidos"],
+  "dependencias": ["crm", "inventario"],
+  "version": "4.1"
+}

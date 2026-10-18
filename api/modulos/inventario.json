@@ -1,0 +1,9 @@
+{
+  "id": "inventario",
+  "nombre": "Inventario",
+  "icono": "productos",
+  "descripcion": "Catálogo de productos con precio, stock y aviso de stock mínimo.",
+  "recursos": ["productos"],
+  "dependencias": [],
+  "version": "4.1"
+}

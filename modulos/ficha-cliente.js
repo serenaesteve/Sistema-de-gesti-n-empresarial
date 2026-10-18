@@ -3,10 +3,11 @@
 import { api } from "../nucleo/js/api.js";
 import { h, icono, formato, insignia, cabeceraPagina, estadoVacio } from "../nucleo/js/dom.js";
 
-export async function vista({ id, esquema }) {
+export async function vista({ id, esquema, info }) {
+  const conVentas = info.modulos.includes("ventas"); // sin el módulo Ventas, la ficha solo tiene los datos
   const [cliente, pedidos] = await Promise.all([
     api("clientes", { id }),
-    api("pedidos", { parametros: { cliente_id: id, orden: "fecha", dir: "desc" } }),
+    conVentas ? api("pedidos", { parametros: { cliente_id: id, orden: "fecha", dir: "desc" } }) : [],
   ]);
 
   const coloresCliente = esquema.clientes.campos.estado.colores;
@@ -40,7 +41,7 @@ export async function vista({ id, esquema }) {
       acciones: [h("a", { class: "boton", href: "#/clientes" }, icono("volver"), "Volver a clientes")],
     }),
 
-    h("div", { class: "rejilla rejilla--indicadores" },
+    conVentas && h("div", { class: "rejilla rejilla--indicadores" },
       indicadores.map((d) =>
         h("div", { class: "tarjeta vidrio indicador" },
           h("span", { class: "titulo" }, d.titulo),
@@ -56,7 +57,7 @@ export async function vista({ id, esquema }) {
           h("dd", {}, valor || h("span", { class: "vacio" }, "—")),
         ])),
       ),
-      h("div", { class: "tarjeta vidrio" },
+      conVentas && h("div", { class: "tarjeta vidrio" },
         h("h2", {}, "Historial de pedidos", h("small", {}, `${pedidos.length} en total`)),
         pedidos.length
           ? h("ul", { class: "lista" }, pedidos.map((p) =>

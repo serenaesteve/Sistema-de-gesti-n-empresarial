@@ -8,7 +8,7 @@
 return [
   'app' => [
     'nombre'  => 'serena | blush',
-    'version' => '3.0',
+    'version' => '4.1',
   ],
 
   // Datos del emisor que aparecen en las facturas (empresa ficticia de demostración)

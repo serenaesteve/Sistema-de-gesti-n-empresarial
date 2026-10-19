@@ -5,5 +5,5 @@
   "descripcion": "Facturas de los pedidos entregados con IVA y numeración correlativa, facturas rectificativas e impresión en PDF.",
   "recursos": ["facturas"],
   "dependencias": ["ventas"],
-  "version": "4.1"
+  "version": "5.1"
 }

@@ -4,6 +4,86 @@ Registro de cambios del proyecto. Parte de **Crimson ERP 0.2** (versión de clas
 
 ---
 
+## [5.1] — 2026-10-19 · RA3: mejoras para los datos reales
+
+### Meter datos reales
+* **Importar pedidos y compras con sus líneas**: una fila por línea; las filas con la misma «Referencia» forman un solo registro y las siguientes heredan cliente, fecha y estado. El cliente o proveedor se busca por nombre o NIF y el producto por nombre; el precio, si no viene, es el del catálogo. Son historial: no cambian el stock.
+* **Modo de importación** para los repetidos (mismo NIF, email o nombre): no importarlos, **actualizar** los que ya existen (solo las columnas que trae el archivo) o importarlos igualmente.
+* **Deshacer una importación** desde el historial: se borra lo creado y lo actualizado vuelve a como estaba. Si algo ya se usa (por ejemplo, un pedido de un cliente importado), no se toca nada (409). Tabla `importaciones` (migración 011).
+* **Fusionar duplicados** desde Análisis → Calidad de los datos: se elige cuál se queda; pedidos, compras y facturas pasan a él y sus datos vacíos se completan con los del otro.
+* **Código postal** (con la **provincia** calculada sola), **IBAN** con dígitos de control y **teléfono** (español o con prefijo internacional) en clientes y proveedores (migración 012).
+
+### Informes y consultas
+* **Comparar** con el periodo anterior o con el mismo periodo del año pasado: columna del valor anterior, variación en % y total comparado.
+* **Filtros** en los informes: cliente, producto, categoría, proveedor y estado.
+* **Informes fiscales**: IVA del trimestre (repercutido por tipo, rectificativas, soportado estimado y resultado, para el modelo 303) y **modelo 347** (clientes y proveedores de más de 3.005,06 € al año, por trimestres). Los informes fiscales empiezan en su periodo natural.
+* **Tabla cruzada** en el constructor (por ejemplo, clientes × meses) y agrupación de fechas por mes o año.
+* **Exportar a Excel (.xlsx)** informes, consultas, listados y tareas: cabecera en negrita, formatos de euro, porcentaje y fecha, fila de totales, filtro y primera fila fija. Sin librerías (`ZipArchive`).
+
+### Automatizar y rendimiento
+* Las **tareas** pueden extraer **consultas guardadas** y guardar en Excel.
+* **Avisos en el panel**: productos que se agotan, tareas que fallan, incidencias abiertas, NIF mal, altas por formularios web y consultas lentas (estos dos últimos, según el rol).
+* **Consultas lentas**: las de informes, constructor, consola y listados que pasan de 500 ms se guardan con su SQL (migración 014); **Explicar** muestra el plan de la base de datos y dice en palabras si usa índices o recorre la tabla entera. También en el constructor y la consola.
+
+### Documentar y analizar
+* **Incidencias** (Administración): qué pasó, tipo, gravedad, estado, responsable y solución (migración 013). Cualquiera las apunta; solo administración las borra. Una tarea que falla abre sola una (solo una mientras siga abierta).
+* **Previsión de ventas**: tendencia de los 12 últimos meses y previsión del mes en curso y los dos siguientes, con su fiabilidad.
+* **Clientes por segmentos (RFM)**: campeones, leales, nuevos, en riesgo, dormidos y ocasionales según cuándo, cada cuánto y cuánto compran.
+
+### Pruebas
+* 123 pruebas: 34 de instalación (la actualización simulada va de la 4.0 a la 5.1, con 13 migraciones), 54 de API (13 nuevas), 3 de scripts y 32 en navegador (6 nuevas). El servidor de pruebas anota todas las consultas como lentas (`ERP_UMBRAL_LENTA=0`) para probar esa parte.
+* Instalación de Apache actualizada de la 5.0 a la 5.1 (4 migraciones y copia automática); Sistema: 50 correctas, 9 avisos, 0 errores.
+* Prueba de carga (20.000 pedidos): análisis 297 ms, avisos del panel 64 ms, tabla cruzada 25 ms, informe comparado 41 ms.
+
+---
+
+## [5.0] — 2026-10-19 · RA3: organización y consulta de la información
+
+Preparado para meter los datos reales de una empresa (unidad 4): cargarlos, consultarlos, sacar informes y comprobar que el sistema aguanta.
+
+### Datos reales
+* **NIF, NIE y CIF** con su letra o dígito de control (tipo de campo `nif`) en clientes, proveedores y empresa. Se guardan normalizados (`b-12345674` → `B12345674`). Los NIF de los datos de demostración ahora son válidos.
+* **Importar** clientes, productos y proveedores desde CSV (`;`, `,` o tabulador; UTF-8 o Windows-1252) o JSON: plantilla descargable, columnas reconocidas por nombre o etiqueta, decimales con coma y fechas `dd/mm/aaaa`, vista previa con los errores de cada fila y aviso de repetidos (NIF, email o nombre). Solo se importan las filas correctas, todas en una transacción.
+* **Formularios web públicos** (`formulario.html?f=…`) que crean clientes, proveedores o productos, con código para incrustarlos. Misma validación que el alta a mano, campo trampa contra robots, máximo de 5 envíos por hora y origen (se guarda una huella, no la IP) y autor «Formulario web · …» en el Registro.
+
+### Consultar
+* **Constructor de consultas**: datos, columnas, filtros (igual, contiene, mayor que, vacío…), agrupación con contar/sumar/media/mínimo/máximo, orden y límite. Solo columnas de una lista blanca y valores parametrizados; muestra el SQL generado.
+* **Consola SQL** (administración): una sola sentencia SELECT, sin comentarios, sin tablas de usuarios y claves, en una conexión de solo lectura del propio motor (`PRAGMA query_only` / transacción `READ ONLY`). Máximo 1.000 filas.
+* **Consultas guardadas**: se repiten con un clic y se exportan.
+
+### Informes y exportación
+* **8 informes**: ventas por periodo, por cliente y por producto, libro de facturas emitidas, pedidos pendientes, clientes sin compras recientes, inventario valorado y compras por proveedor.
+* Periodos día / semana / mes / trimestre / año con ◀ ▶, o fechas a medida; agrupación por día, semana, mes o año (los periodos sin ventas salen con 0). Totales, porcentaje del total y gráfico.
+* Exportación a **CSV** (BOM, `;`, decimales con coma, fila TOTAL y protección contra fórmulas) y **JSON**; **imprimir / PDF** con hoja de estilos de impresión.
+* Todos los listados se exportan también en JSON.
+
+### Automatizar
+* **Tareas programadas**: un informe con un periodo relativo (ayer, semana anterior, mes anterior, últimos 30 días, año en curso), cada día, cada lunes o el día 1 a las 7:00, en CSV o JSON.
+* `scripts/tareas.php` para cron (`--todas`, `--id=`), botón «Ejecutar», archivos en `datos/extracciones/` (los 30 últimos por tarea) y descarga desde el ERP. Los errores quedan como **incidencia** en el Registro.
+
+### Rendimiento
+* `scripts/monitor.php` (cron, cada minuto) guarda CPU, memoria, disco, carga y tamaño de la base de datos leyendo `/proc`, sin dependencias.
+* Cada petición a la API anota recurso, método, código y milisegundos (se guardan 7 días).
+* Pantalla **Rendimiento**: gráficos, media / p95 / máximo / errores por recurso, filas por tabla, avisos por umbral, prueba de velocidad e informe en Markdown.
+* `scripts/carga.php`: prueba de carga en una base de datos temporal (2.000 clientes y 20.000 pedidos por defecto).
+* Migración 010 con índices para informes y análisis: el análisis pasa de 286 ms a 19 ms con 3.000 pedidos.
+
+### Información relevante
+* Pantalla **Análisis**: ventas del mes frente al mes anterior y previsión, concentración de clientes (cuántos hacen el 80 %), clientes en riesgo, cobertura de stock con cantidad a reponer, margen por producto, pendiente de facturar, ventas por día de la semana, **calidad de los datos** (NIF/CIF no válidos, contactos sin email ni teléfono, posibles duplicados) y **recomendaciones** en texto.
+
+### Menú y permisos
+* Nuevas secciones **Análisis** (Informes, Análisis, Consultas, Rendimiento) y **Datos** (Importar y exportar, Formularios web, Tareas programadas), en el módulo Núcleo.
+* El comercial ve Informes, Análisis y el constructor de consultas, siempre solo con los datos que puede ver; el resto es de administración.
+
+### Actualización
+* Migraciones 006–010 (tablas `consultas`, `formularios`, `formulario_envios`, `tareas`, `tarea_ejecuciones`, `metricas`, `peticiones` e índices). Esquema 6; las copias de la 4.1 (esquema 5) se pueden restaurar.
+
+### Pruebas
+* 104 pruebas: 34 de instalación (ahora la actualización simulada va de la 4.0 a la 5.0, con 9 migraciones), 41 de API (14 nuevas de RA3, entre ellas intentos de escribir o leer tablas protegidas desde la consola SQL y el límite de los formularios públicos), 3 de los scripts de cron y 26 en navegador (8 nuevas).
+* Instalación de Apache actualizada de la 4.1 a la 5.0 desde la pantalla Actualizar: 5 migraciones y copia automática; Sistema con 0 errores.
+
+---
+
 ## [4.1] — 2026-10-18 · RA2: actualización, acceso y entornos
 
 ### Actualizaciones

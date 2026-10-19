@@ -14,7 +14,7 @@ $admin = new Sesion($base);
 
 $instalacion = [
   'perfil' => 'consultoria', 'motor' => 'sqlite', 'demo' => false,
-  'empresa' => ['nombre' => 'Consultora Prueba S.L.', 'nif' => 'B11111111'],
+  'empresa' => ['nombre' => 'Consultora Prueba S.L.', 'nif' => 'B11111119'],
   'admin'   => ['nombre' => 'Laura Admin', 'email' => 'laura@consultora.test', 'clave' => 'laura12345'],
 ];
 
@@ -66,7 +66,8 @@ prueba('El administrador creado en la instalación puede entrar', function () us
   igual('admin', $admin->datos($admin->entrar($instalacion['admin']['email'], $instalacion['admin']['clave']))['rol']);
 });
 prueba('Solo aparecen los módulos instalados; los demás responden 403', function () use ($admin) {
-  igual(['panel', 'clientes', 'usuarios', 'registro', 'modulos', 'ajustes', 'api', 'sistema'], array_column($admin->datos($admin->get('menu')), 'id'));
+  igual(['panel', 'clientes', 'informes', 'analisis', 'consultas', 'rendimiento', 'intercambio', 'formularios', 'tareas', 'usuarios', 'incidencias', 'registro', 'modulos', 'ajustes', 'api', 'sistema'],
+    array_column($admin->datos($admin->get('menu')), 'id'));
   $json = codigo(403, $admin->get('pedidos'));
   igual(true, str_contains($json['error'], 'no está activo'));
 });
@@ -117,10 +118,10 @@ prueba('El registro anota la instalación y los cambios de configuración', func
   igual(true, in_array('instalar', $acciones, true) && in_array('configurar', $acciones, true));
 });
 
-echo "\nActualización (simulando una base de datos de la v4.0)\n";
+echo "\nActualización (simulando una base de datos de la v4.0 que pasa a la v5.1)\n";
 
 $comercial = new Sesion($base);
-prueba('Se prepara una base de datos «antigua»: sin las migraciones de la v4.1', function () use ($admin, $sqlite, $rutaInstalacion) {
+prueba('Se prepara una base de datos «antigua»: sin las migraciones de la v4.1 ni de la v5', function () use ($admin, $sqlite, $rutaInstalacion) {
   $admin->datos($admin->post('usuarios', ['nombre' => 'Pilar Comercial', 'email' => 'pilar@consultora.test', 'clave' => 'pilar12345', 'rol' => 'comercial']));
   $pdo = new PDO("sqlite:$sqlite");
   $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -128,6 +129,9 @@ prueba('Se prepara una base de datos «antigua»: sin las migraciones de la v4.1
   $pdo->exec('ALTER TABLE clientes DROP COLUMN notas');
   $pdo->exec('ALTER TABLE usuarios DROP COLUMN permisos');
   $pdo->exec('DROP TABLE claves_api');
+  foreach (['consultas', 'formulario_envios', 'formularios', 'tarea_ejecuciones', 'tareas', 'metricas', 'peticiones', 'importaciones', 'incidencias', 'consultas_lentas'] as $t) $pdo->exec("DROP TABLE $t");
+  foreach (['clientes', 'proveedores'] as $t) foreach (['codigo_postal', 'provincia', 'iban'] as $c) $pdo->exec("ALTER TABLE $t DROP COLUMN $c");
+  foreach (['idx_pedido_lineas_producto', 'idx_compra_lineas_producto', 'idx_pedidos_cliente'] as $i) $pdo->exec("DROP INDEX IF EXISTS $i");
   $pdo->exec("DELETE FROM migraciones WHERE id > '002'");
   $pdo->exec("DELETE FROM migraciones WHERE id LIKE '002%'");
   $json = json_decode(file_get_contents($rutaInstalacion), true);
@@ -135,7 +139,7 @@ prueba('Se prepara una base de datos «antigua»: sin las migraciones de la v4.1
 });
 prueba('Con migraciones pendientes, el ERP queda en mantenimiento (503)', function () use ($admin) {
   $estado = $admin->datos($admin->get('estado'));
-  igual([4, '4.0'], [$estado['actualizacion'], $estado['version_instalada']]);
+  igual([13, '4.0'], [$estado['actualizacion'], $estado['version_instalada']]);
   codigo(503, $admin->get('clientes'));
 });
 prueba('Solo un administrador puede actualizar', function () use ($comercial) {
@@ -144,15 +148,19 @@ prueba('Solo un administrador puede actualizar', function () use ($comercial) {
 });
 prueba('La pantalla de actualización lista las migraciones pendientes', function () use ($admin) {
   $info = $admin->datos($admin->get('actualizar'));
-  igual(['002-indices', '003-clientes-notas', '004-claves-api', '005-permisos-usuarios'], array_column($info['pendientes'], 'id'));
-  igual(['4.0', '4.1'], [$info['instalada'], $info['nueva']]);
+  igual(['002-indices', '003-clientes-notas', '004-claves-api', '005-permisos-usuarios', '006-consultas-guardadas', '007-formularios-web',
+    '008-extracciones-programadas', '009-metricas-rendimiento', '010-indices-analisis', '011-importaciones', '012-datos-espanoles',
+    '013-incidencias', '014-consultas-lentas'], array_column($info['pendientes'], 'id'));
+  igual(['4.0', '5.1'], [$info['instalada'], $info['nueva']]);
 });
 prueba('Actualizar hace una copia de seguridad y aplica las migraciones', function () use ($admin, $rutaInstalacion) {
   $resultado = $admin->datos($admin->post('actualizar'));
-  igual(4, count($resultado['aplicadas']));
+  igual(13, count($resultado['aplicadas']));
   igual(true, is_file(dirname($rutaInstalacion) . '/copias/' . $resultado['copia']), 'la copia existe');
   igual(0, $admin->datos($admin->get('estado'))['actualizacion']);
-  igual('4.1', json_decode(file_get_contents($rutaInstalacion), true)['version']);
+  igual('5.1', json_decode(file_get_contents($rutaInstalacion), true)['version']);
+  igual([], $admin->datos($admin->get('consultas'))['guardadas'], 'las tablas de la v5.0 existen');
+  igual('Valencia', $admin->datos($admin->post('clientes', ['nombre' => 'Con CP', 'codigo_postal' => '46001']))['provincia'], 'las columnas de la v5.1 existen');
   $cliente = $admin->datos($admin->post('clientes', ['nombre' => 'Cliente con notas', 'notas' => "Prefiere email.\nLlamar los lunes."]));
   igual("Prefiere email.\nLlamar los lunes.", $cliente['notas']);
   codigo(409, $admin->post('actualizar'));

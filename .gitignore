@@ -3,3 +3,4 @@ datos/*.sqlite
 datos/*.sqlite-journal
 datos/instalacion.json
 datos/copias/
+datos/extracciones/

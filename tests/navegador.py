@@ -229,6 +229,217 @@ with sync_playwright() as p:
         expect(pg.locator("dialog[open]")).to_have_count(0)
     prueba("Permisos por módulo: crear marca también ver", permisos_usuario)
 
+
+    print("\nNavegador · organización y consulta de la información (RA3)")
+
+    def vistas_ra3():
+        for ruta in ["informes", "analisis", "consultas", "rendimiento", "intercambio", "formularios", "tareas", "incidencias"]:
+            ir(pg, ruta)
+            pg.wait_for_selector("main .tarjeta")
+        expect(pg.locator("#menu-lista .etiqueta", has_text="Análisis")).to_have_count(1)
+        expect(pg.locator("#menu-lista .etiqueta", has_text="Datos")).to_have_count(1)
+    prueba("Las siete pantallas nuevas cargan y el menú tiene «Análisis» y «Datos»", vistas_ra3)
+
+    def informes():
+        ir(pg, "informes")
+        pg.wait_for_selector(".informe table")
+        expect(pg.locator(".informe .columnas")).to_have_count(1)
+        pg.click(".segmentado button:text-is('Año')")
+        anio = pg.locator(".navegador-periodo strong").inner_text()
+        pg.click("button[aria-label='Periodo anterior']")
+        expect(pg.locator(".navegador-periodo strong")).not_to_have_text(anio)
+        pg.click("button[aria-label='Periodo siguiente']")
+        expect(pg.locator(".navegador-periodo strong")).to_have_text(anio)
+        expect(pg.locator(".informe tfoot")).to_contain_text("Total")
+        captura(pg, "informes")
+        pg.select_option("#informe", "ventas_cliente")
+        pg.wait_for_selector(".informe .barras")
+        with pg.expect_download() as descarga:
+            pg.click("main .pagina-acciones a:has-text('CSV')")
+        assert descarga.value.suggested_filename.startswith("ventas_cliente") and descarga.value.suggested_filename.endswith(".csv")
+        captura(pg, "informes-clientes")
+    prueba("Informes: periodos con ◀ ▶, totales, gráfico y exportación a CSV", informes)
+
+    def analisis():
+        ir(pg, "analisis")
+        expect(pg.locator(".recomendaciones li").first).to_be_visible()
+        expect(pg.locator("main h2", has_text="Cobertura de stock")).to_have_count(1)
+        captura(pg, "analisis")
+    prueba("Análisis: recomendaciones, concentración, riesgo, cobertura y márgenes", analisis)
+
+    def consultas():
+        ir(pg, "consultas")
+        pg.select_option("#c-recurso", "clientes")
+        pg.select_option("#c-agrupar", "ciudad")
+        pg.click("button:has-text('Ejecutar consulta')")
+        expect(pg.locator(".sql-generado pre")).to_contain_text("GROUP BY t.ciudad")
+        expect(pg.locator(".tabla-resultado tbody tr").first).to_be_visible()
+        captura(pg, "consultas-constructor")
+        pg.click(".segmentado button:text-is('Consola SQL')")
+        pg.click("button:has-text('Ventas por mes')")
+        pg.click("form button:has-text('Ejecutar')")
+        expect(pg.locator(".tabla-resultado th").first).to_contain_text("mes")
+        captura(pg, "consultas-sql")
+        pg.fill("#c-sql", "DELETE FROM clientes")
+        pg.click("form button:has-text('Ejecutar')")
+        expect(pg.locator(".vacio-estado h3")).to_contain_text("Solo se permiten consultas SELECT")
+    prueba("Consultas: constructor con el SQL generado y consola de solo lectura", consultas)
+
+    def importar():
+        ir(pg, "intercambio")
+        pg.select_option("#destino", "clientes")
+        csv = "Nombre;Email;Ciudad\nCliente importado web;importado@web.es;Castellón\nSin nombre email;no-es-email;Valencia\n"
+        pg.set_input_files("#archivo-importar", files=[{"name": "clientes.csv", "mimeType": "text/csv", "buffer": csv.encode()}])
+        expect(pg.locator(".tabla-previa tr.fila-error")).to_have_count(1)
+        captura(pg, "importar-vista-previa")
+        pg.click("button:has-text('Importar 1 fila')")
+        expect(pg.locator(".vacio-estado h3")).to_contain_text("1 importados")
+    prueba("Importar: vista previa con la fila errónea marcada e importación de las correctas", importar)
+
+    def formularios():
+        ir(pg, "formularios")
+        pg.click("button:has-text('Nuevo formulario')")
+        pg.fill("#fw-titulo", "Alta de proveedor")
+        pg.select_option("#fw-recurso", "proveedores")
+        pg.locator("dialog label:has-text('NIF / CIF') input").check()
+        pg.click("dialog button:has-text('Publicar formulario')")
+        expect(pg.locator("article.modulo h2", has_text="Alta de proveedor")).to_have_count(1)
+        captura(pg, "formularios")
+        publica = navegador.new_context(viewport={"width": 900, "height": 900}).new_page()
+        publica.on("pageerror", lambda e: errores_consola.append(str(e)))
+        publica.goto(URL + "formulario.html?f=alta-de-proveedor")
+        publica.wait_for_selector("#f-nombre")
+        publica.fill("#f-nombre", "Proveedor desde la web")
+        publica.fill("#f-nif", "B12345675")
+        publica.click("button:has-text('Enviar')")
+        expect(publica.locator("#e-nif")).to_contain_text("no válido")
+        publica.fill("#f-nif", "b-12345674")
+        if CAPTURAS:
+            publica.screenshot(path=f"{CAPTURAS}/formulario-publico.png", full_page=True)
+        publica.click("button:has-text('Enviar')")
+        expect(publica.locator("h1")).to_have_text("¡Enviado!")
+        publica.context.close()
+        ir(pg, "proveedores")
+        expect(pg.locator("main tbody")).to_contain_text("Proveedor desde la web")
+    prueba("Formularios web: se publica uno y un visitante sin sesión lo envía", formularios)
+
+    def tareas():
+        ir(pg, "tareas")
+        pg.click("main .pagina-acciones button:has-text('Nueva tarea')")
+        pg.fill("#t-nombre", "Ventas del mes para dirección")
+        pg.select_option("#t-informe", "ventas_producto")
+        pg.click("dialog button:has-text('Programar')")
+        fila = pg.locator("main tbody tr", has_text="Ventas del mes para dirección")
+        fila.locator("button:has-text('Ejecutar')").click()
+        expect(pg.locator(".linea-tiempo li").first).to_contain_text("Ventas del mes para dirección")
+        captura(pg, "tareas")
+        with pg.expect_download() as descarga:
+            pg.locator(".linea-tiempo li").first.locator("a").click()
+        assert descarga.value.suggested_filename.endswith(".csv")
+    prueba("Tareas programadas: programar, ejecutar ahora y descargar la extracción", tareas)
+
+    def rendimiento():
+        ir(pg, "rendimiento")
+        pg.click("button:has-text('Medir velocidad')")
+        expect(pg.locator("main h2", has_text="Prueba de velocidad")).to_have_count(1)
+        captura(pg, "rendimiento")
+    prueba("Rendimiento: estado del servidor, tiempos por recurso y prueba de velocidad", rendimiento)
+
+
+    print("\nNavegador · datos reales y más consultas (v5.1)")
+
+    def importar_pedidos_y_deshacer():
+        ir(pg, "intercambio")
+        pg.select_option("#destino", "pedidos")
+        csv = "Referencia;Cliente;Fecha;Estado;Producto;Cantidad\nW-1;Noa Vidal;10/03/2025;entregado;Disco SSD 1TB;2\nW-1;;;;Memoria USB 128GB;5\n"
+        pg.set_input_files("#archivo-importar", files=[{"name": "historico.csv", "mimeType": "text/csv", "buffer": csv.encode()}])
+        expect(pg.locator(".tarjeta .resumen")).to_contain_text("1 registro")
+        captura(pg, "importar-pedidos")
+        pg.click("button:has-text('Importar 1 registro')")
+        expect(pg.locator(".vacio-estado h3")).to_contain_text("1 importados")
+        pg.click("button:has-text('Ver el historial')")
+        historial = pg.locator(".linea-tiempo li", has_text="historico.csv").first
+        historial.locator("button:has-text('Deshacer')").click()
+        pg.click("dialog button[value=si]")
+        expect(pg.locator(".linea-tiempo li", has_text="historico.csv").first).to_contain_text("deshecha")
+        captura(pg, "importar-historial")
+    prueba("Importar pedidos con líneas y deshacer la importación desde el historial", importar_pedidos_y_deshacer)
+
+    def informes_comparar():
+        ir(pg, "informes")
+        pg.select_option("#informe", "ventas_cliente")
+        pg.click(".segmentado button:text-is('Año')")
+        pg.select_option("#comparar", "ano_anterior")
+        expect(pg.locator(".comparacion")).to_contain_text("Mismo periodo del año pasado")
+        expect(pg.locator(".informe .tabla-resultado thead")).to_contain_text("Variación")
+        pg.select_option("#filtro-categoria", "Audio")
+        expect(pg.locator(".informe")).to_be_visible()
+        captura(pg, "informes-comparar")
+        with pg.expect_download() as descarga:
+            pg.click("main .pagina-acciones a:has-text('Excel')")
+        assert descarga.value.suggested_filename.endswith(".xlsx")
+        pg.select_option("#informe", "iva_trimestral")
+        expect(pg.locator(".navegador-periodo strong")).to_contain_text("trimestre")
+        expect(pg.locator(".informe .tabla-resultado tbody")).to_contain_text("Resultado")
+        captura(pg, "informes-iva")
+    prueba("Informes: comparar con el año pasado, filtrar, Excel e IVA del trimestre", informes_comparar)
+
+    def consultas_cruzada():
+        ir(pg, "consultas")
+        pg.click(".segmentado button:text-is('Constructor')")
+        pg.select_option("#c-recurso", "pedidos")
+        pg.select_option("#c-agrupar", "cliente")
+        pg.select_option("#c-cruzar", "fecha__mes")
+        pg.select_option("#c-agregacion", "suma")
+        pg.locator("select[aria-label='Campo a calcular']").select_option("total")
+        pg.click("button:has-text('Ejecutar consulta')")
+        expect(pg.locator(".tabla-resultado thead th").last).to_contain_text("Total")
+        captura(pg, "consultas-cruzada")
+        pg.click("button:has-text('Explicar')")
+        expect(pg.locator("main h2", has_text="Cómo la ejecuta la base de datos")).to_have_count(1)
+    prueba("Consultas: tabla cruzada clientes × meses y «Explicar»", consultas_cruzada)
+
+    def analisis_duplicados():
+        cab = {"X-Blush": "1", "Content-Type": "application/json"}
+        for cuerpo in [{"nombre": "Irene Duplicada", "email": "irene@dup.es"}, {"nombre": "Irene Duplicada", "telefono": "611 222 333"}]:
+            r = pg.request.post(URL + "api/api.php?recurso=clientes", headers=cab, data=cuerpo)
+            assert r.ok, r.text()
+        ir(pg, "analisis")
+        expect(pg.locator("main h2", has_text="Previsión de ventas")).to_have_count(1)
+        expect(pg.locator(".segmentos li").first).to_be_visible()
+        captura(pg, "analisis-prevision")
+        pg.locator("tr", has_text="Clientes").locator("button:has-text('Revisar')").click()
+        grupo = pg.locator(".grupo-duplicados", has_text="Irene Duplicada")
+        grupo.locator("button:has-text('Fusionar')").click()
+        pg.click("dialog button[value=si]")
+        expect(pg.locator(".grupo-duplicados", has_text="Irene Duplicada")).to_have_count(0)
+        pg.click("dialog button:has-text('Cerrar')")
+        r = pg.request.get(URL + "api/api.php?recurso=clientes&q=Irene%20Duplicada")
+        assert len(r.json()["datos"]) == 1, r.text()
+    prueba("Análisis: previsión, segmentos y fusión de clientes repetidos", analisis_duplicados)
+
+    def panel_avisos_e_incidencias():
+        ir(pg, "incidencias")
+        pg.click("#nuevo")
+        pg.fill("[name='titulo']", "Faltan los NIF de dos proveedores")
+        pg.select_option("[name='gravedad']", "alta")
+        pg.click("dialog button[type=submit]")
+        expect(pg.locator("main tbody")).to_contain_text("Faltan los NIF de dos proveedores")
+        captura(pg, "incidencias")
+        ir(pg, "panel")
+        expect(pg.locator(".avisos-panel")).to_contain_text("incidencia")
+        captura(pg, "panel-avisos")
+    prueba("Incidencias y avisos en el panel", panel_avisos_e_incidencias)
+
+    def rendimiento_lentas():
+        ir(pg, "rendimiento")
+        lentas = pg.locator(".tarjeta", has_text="Consultas lentas")
+        expect(lentas.locator("tbody tr").first).to_be_visible()
+        lentas.locator("button:has-text('Explicar')").first.click()
+        expect(pg.locator("main h2", has_text="Cómo la ejecuta la base de datos")).to_have_count(1)
+        captura(pg, "rendimiento-lentas")
+    prueba("Rendimiento: consultas lentas con su plan", rendimiento_lentas)
+
     if URL_INSTALADOR:
         print("\nNavegador · asistente de instalación")
         nuevo = navegador.new_context(viewport={"width": 1440, "height": 900})
@@ -256,7 +467,7 @@ with sync_playwright() as p:
             pi.click("button:has-text('Siguiente')")
             expect(pi.locator("#instalar-empresa-nombre-error")).to_contain_text("obligatorio")
             pi.fill("#instalar-empresa-nombre", "Tienda Azahar S.L.")
-            pi.fill("#instalar-empresa-nif", "B46999888")
+            pi.fill("#instalar-empresa-nif", "B46999884")
             pi.fill("#instalar-admin-nombre", "Marta Ruiz")
             pi.fill("#instalar-admin-email", "marta@azahar.test")
             pi.fill("#instalar-admin-clave", "marta12345")
@@ -282,6 +493,9 @@ with sync_playwright() as p:
         entrar(pc, "pablo@blush.test")
         menu = pc.locator("#menu-lista a").all_inner_texts()
         assert "Sistema" not in menu and "Usuarios" not in menu, menu
+        assert "Informes" in menu and "Análisis" in menu and "Rendimiento" not in menu and "Tareas programadas" not in menu, menu
+        ir(pc, "consultas")
+        expect(pc.locator("button:text-is('Consola SQL')")).to_have_count(0)
         ir(pc, "clientes")
         expect(pc.locator("button[aria-label^='Borrar']")).to_have_count(0)
         ir(pc, "facturas")
@@ -289,7 +503,7 @@ with sync_playwright() as p:
         ir(pc, "panel")
         if CAPTURAS:
             pc.screenshot(path=f"{CAPTURAS}/movil-panel.png", full_page=True)
-    prueba("El comercial no ve Sistema/Usuarios ni puede borrar o rectificar", comercial)
+    prueba("El comercial no ve Sistema/Usuarios/Rendimiento ni la consola SQL, ni puede borrar o rectificar", comercial)
 
     def cambiar_clave():
         pc.click("#cuenta")

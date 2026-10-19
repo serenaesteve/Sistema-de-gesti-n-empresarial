@@ -31,8 +31,9 @@ function exportarCopia(PDO $pdo, array $config, array $esquema): never {
 // si algo falla, la base de datos se queda como estaba.
 function restaurarCopia(PDO $pdo, array $esquema, array $copia): array {
   $tablas = tablas($esquema);
-  if (($copia['esquema'] ?? null) !== VERSION_ESQUEMA || !is_array($copia['tablas'] ?? null)) {
-    fallar('El archivo no es una copia de seguridad válida de esta versión (esquema ' . VERSION_ESQUEMA . ').', 422);
+  // Los esquemas 6 (v5.0) y 7 (v5.1) solo añaden tablas y columnas: las copias de la v4.1 en adelante valen
+  if (!in_array($copia['esquema'] ?? null, [5, 6, VERSION_ESQUEMA], true) || !is_array($copia['tablas'] ?? null)) {
+    fallar('El archivo no es una copia de seguridad válida de esta versión (esquema 5 a ' . VERSION_ESQUEMA . ').', 422);
   }
 
   // Columnas permitidas por tabla: nunca se usa un nombre de columna que venga del archivo sin comprobarlo

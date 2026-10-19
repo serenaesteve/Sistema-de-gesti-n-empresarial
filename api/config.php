@@ -8,13 +8,13 @@
 return [
   'app' => [
     'nombre'  => 'serena | blush',
-    'version' => '4.1',
+    'version' => '5.1',
   ],
 
   // Datos del emisor que aparecen en las facturas (empresa ficticia de demostración)
   'empresa' => [
     'nombre'    => 'Blush Studio S.L.',
-    'nif'       => 'B12345678',
+    'nif'       => 'B12345674',
     'direccion' => 'C/ de la Paz 12, 46003 Valencia',
     'email'     => 'hola@blush.test',
     'iva'       => 21,

@@ -46,6 +46,14 @@ export async function vista(contexto) {
       acciones: [activo("ventas") && selector],
     }),
 
+    // Avisos: lo que pide atención hoy (stock que se agota, tareas que fallan, incidencias, datos mal…)
+    datos.alertas?.length > 0 && h("div", { class: "tarjeta vidrio avisos-panel" },
+      h("h2", {}, "Avisos", h("small", {}, `${datos.alertas.length}`)),
+      h("ul", { class: "recomendaciones" }, datos.alertas.map((a) => h("li", { class: { error: "error", aviso: "aviso", info: "accion" }[a.tipo] },
+        h("span", { class: "icono", "aria-hidden": "true" }, icono(a.icono)),
+        h("span", { class: "texto-aviso" }, a.texto),
+        h("a", { class: "boton boton--pequeno", href: a.enlace }, "Ver"))))),
+
     h("div", { class: "rejilla rejilla--indicadores" },
       indicadores.map((d) =>
         h("a", { class: `tarjeta vidrio indicador ${d.aviso ? "alerta" : ""}`, href: d.enlace },

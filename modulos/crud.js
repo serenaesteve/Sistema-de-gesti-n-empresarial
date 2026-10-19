@@ -19,7 +19,9 @@ export async function vista({ recurso, modulo, señal, puede, consulta, esquema 
   };
 
   const contador = h("span", { class: "contador" });
-  const csv = h("a", { class: "boton", download: "" }, icono("descargar"), "Exportar CSV");
+  const xlsx = h("a", { class: "boton", download: "", title: "Exportar a Excel" }, icono("descargar"), "Excel");
+  const csv = h("a", { class: "boton", download: "" }, icono("descargar"), "CSV");
+  const json = h("a", { class: "boton", download: "", title: "Exportar en JSON (para otros programas)" }, icono("descargar"), "JSON");
   const cuerpoTabla = h("tbody");
   const cabeceras = columnas.map((c) =>
     h("th", { scope: "col", class: c.alinear },
@@ -44,7 +46,7 @@ export async function vista({ recurso, modulo, señal, puede, consulta, esquema 
     cabeceraPagina({
       antetitulo: modulo.grupo,
       titulo: modulo.titulo,
-      acciones: [contador, filtroFechas, csv],
+      acciones: [contador, filtroFechas, xlsx, csv, json],
     }),
     zona,
   );
@@ -58,7 +60,9 @@ export async function vista({ recurso, modulo, señal, puede, consulta, esquema 
     };
     const datos = await api(recurso, { parametros: { ...parametros, pagina: estado.pagina } });
     Object.assign(estado, datos);
+    xlsx.href = urlApi(recurso, { ...parametros, formato: "xlsx" });
     csv.href = urlApi(recurso, { ...parametros, formato: "csv" });
+    json.href = urlApi(recurso, { ...parametros, formato: "json" });
     pintar();
   }
 
@@ -529,6 +533,9 @@ function crearControl(campo, def, valor, opciones = [], editando = false, esquem
   const tipos = {
     email: { type: "email", autocomplete: "off" },
     tel: { type: "tel", autocomplete: "off" },
+    nif: { type: "text", maxlength: "12", autocomplete: "off", spellcheck: "false", autocapitalize: "characters", placeholder: "B12345674" },
+    cp: { type: "text", maxlength: "5", inputmode: "numeric", pattern: "[0-9]{5}", autocomplete: "postal-code", placeholder: "46001" },
+    iban: { type: "text", maxlength: "34", autocomplete: "off", spellcheck: "false", autocapitalize: "characters", placeholder: "ES00 0000 0000 0000 0000 0000" },
     moneda: { type: "number", step: "0.01", min: "0", inputmode: "decimal" },
     entero: { type: "number", step: "1", min: def.minimo ?? null, inputmode: "numeric" },
     fecha: { type: "date" },

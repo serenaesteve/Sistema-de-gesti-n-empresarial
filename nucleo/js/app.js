@@ -14,9 +14,19 @@ import * as modulos from "../../modulos/modulos.js";
 import * as ajustes from "../../modulos/ajustes.js";
 import * as clavesApi from "../../modulos/claves-api.js";
 import * as actualizar from "../../modulos/actualizar.js";
+import * as informes from "../../modulos/informes.js";
+import * as analisis from "../../modulos/analisis.js";
+import * as consultas from "../../modulos/consultas.js";
+import * as rendimiento from "../../modulos/rendimiento.js";
+import * as intercambio from "../../modulos/intercambio.js";
+import * as formularios from "../../modulos/formularios.js";
+import * as tareas from "../../modulos/tareas.js";
 
 // Vistas propias; el resto de módulos del esquema usan la vista genérica crud.
-const especiales = { panel, registro, sistema, modulos, ajustes, api: clavesApi };
+const especiales = {
+  panel, registro, sistema, modulos, ajustes, api: clavesApi,
+  informes, analisis, consultas, rendimiento, intercambio, formularios, tareas,   // RA3
+};
 // Vistas de detalle: #/clientes/3
 const fichas = { clientes: fichaCliente };
 
@@ -134,7 +144,7 @@ function puede(accion, recurso) {
 
 // ---------- Menú, cabecera y pie ----------
 
-// Menú agrupado por secciones (Ventas, Compras, Administración)
+// Menú agrupado por secciones (Ventas, Compras, Análisis, Datos, Administración)
 function pintarMenu() {
   const elementos = [];
   let grupo;

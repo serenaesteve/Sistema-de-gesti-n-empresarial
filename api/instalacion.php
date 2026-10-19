@@ -7,7 +7,7 @@
 //   Los activos se guardan en la tabla ajustes; desactivar un módulo no borra sus datos.
 // · Perfiles: instalacion/perfiles/<id>.json, conjuntos de módulos para cada tipo de empresa.
 
-const VERSION_APP = '4.1';
+const VERSION_APP = '5.1';
 const ENTORNOS = [
   'desarrollo'  => 'Desarrollo: errores detallados y franja de aviso. Para programar.',
   'pruebas'     => 'Pruebas: datos de prueba y franja de aviso. Para validar antes de publicar.',
@@ -150,6 +150,10 @@ function cambiarAjustes(PDO $pdo, array $actuales, array $entrada): array {
   }
   if ($empresa['nombre'] === '') $errores['empresa.nombre'] = 'Este campo es obligatorio';
   if ($empresa['email'] !== '' && !filter_var($empresa['email'], FILTER_VALIDATE_EMAIL)) $errores['empresa.email'] = 'Email no válido';
+  if ($empresa['nif'] !== '') {
+    $empresa['nif'] = normalizarNif($empresa['nif']);
+    if (!nifValido($empresa['nif'])) $errores['empresa.nif'] = 'NIF o CIF no válido';
+  }
 
   $iva = filter_var($entrada['iva'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 100]]);
   if ($iva === false) $errores['iva'] = 'Entre 0 y 100';
@@ -314,6 +318,10 @@ function instalar(array $config, array $esquema, array $entrada): array {
               'direccion' => $texto($entrada['empresa']['direccion'] ?? ''), 'email' => $texto($entrada['empresa']['email'] ?? '')];
   if ($empresa['nombre'] === '') $errores['empresa.nombre'] = 'Este campo es obligatorio';
   if ($empresa['email'] !== '' && !filter_var($empresa['email'], FILTER_VALIDATE_EMAIL)) $errores['empresa.email'] = 'Email no válido';
+  if ($empresa['nif'] !== '') {
+    $empresa['nif'] = normalizarNif($empresa['nif']);
+    if (!nifValido($empresa['nif'])) $errores['empresa.nif'] = 'NIF o CIF no válido';
+  }
 
   $admin = ['nombre' => $texto($entrada['admin']['nombre'] ?? ''), 'email' => $texto($entrada['admin']['email'] ?? ''), 'clave' => (string)($entrada['admin']['clave'] ?? '')];
   if ($admin['nombre'] === '') $errores['admin.nombre'] = 'Este campo es obligatorio';

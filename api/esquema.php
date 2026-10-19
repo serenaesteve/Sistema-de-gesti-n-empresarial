@@ -3,7 +3,8 @@
 // Es la única fuente de verdad: a partir de aquí se crean las tablas, se valida lo que
 // llega a la API, se comprueban los permisos y el frontend genera tablas y formularios.
 //
-// Tipos de campo: texto, largo (texto de varias líneas), email, tel, clave, opcion, moneda,
+// Tipos de campo: texto, largo (texto de varias líneas), email, tel, nif (NIF/NIE/CIF con control), cp (código postal),
+// iban (con dígitos de control), clave, opcion, moneda,
 // entero, fecha, relacion, permisos (casillas por módulo y acción, en JSON).
 //
 // Opciones de módulo:
@@ -23,7 +24,8 @@
 //   obligatorio, defecto ('hoy' = fecha actual), minimo, alerta (stock bajo), unico,
 //   auto (lo rellena la lógica de negocio: no aparece en el formulario),
 //   enlace (la celda enlaza a esta URL), oculto (se envía pero no se muestra),
-//   detalle (dato extra en el desplegable de una relación: [campo, sufijo])
+//   detalle (dato extra en el desplegable de una relación: [campo, sufijo]),
+//   desde_cp (la provincia se calcula sola a partir de este código postal)
 
 $producto = ['etiqueta' => 'Producto', 'tipo' => 'relacion', 'obligatorio' => true, 'tabla' => 'productos', 'mostrar' => 'nombre', 'detalle' => ['stock', 'uds.']];
 $cantidad = ['etiqueta' => 'Cantidad', 'tipo' => 'entero', 'obligatorio' => true, 'defecto' => 1, 'minimo' => 1];
@@ -53,11 +55,15 @@ return [
     'campos' => [
       'nombre'    => ['etiqueta' => 'Nombre',    'tipo' => 'texto', 'obligatorio' => true],
       'empresa'   => ['etiqueta' => 'Empresa',   'tipo' => 'texto'],
-      'nif'       => ['etiqueta' => 'NIF / CIF', 'tipo' => 'texto'],
+      'nif'       => ['etiqueta' => 'NIF / CIF', 'tipo' => 'nif'],
       'email'     => ['etiqueta' => 'Email',     'tipo' => 'email'],
       'telefono'  => ['etiqueta' => 'Teléfono',  'tipo' => 'tel'],
       'direccion' => ['etiqueta' => 'Dirección', 'tipo' => 'texto'],
       'ciudad'    => ['etiqueta' => 'Ciudad',    'tipo' => 'texto'],
+      // v5.1 (migración 012): datos de una empresa real
+      'codigo_postal' => ['etiqueta' => 'Código postal', 'tipo' => 'cp'],
+      'provincia' => ['etiqueta' => 'Provincia', 'tipo' => 'texto', 'auto' => true, 'desde_cp' => 'codigo_postal'],
+      'iban'      => ['etiqueta' => 'IBAN',      'tipo' => 'iban'],
       'estado'    => [
         'etiqueta' => 'Estado', 'tipo' => 'opcion', 'obligatorio' => true, 'defecto' => 'potencial',
         'opciones' => ['potencial', 'activo', 'inactivo'],
@@ -176,10 +182,13 @@ return [
     'permisos'  => ['comercial' => ['ver']],
     'campos' => [
       'nombre'   => ['etiqueta' => 'Nombre',    'tipo' => 'texto', 'obligatorio' => true],
-      'nif'      => ['etiqueta' => 'NIF / CIF', 'tipo' => 'texto'],
+      'nif'      => ['etiqueta' => 'NIF / CIF', 'tipo' => 'nif'],
       'email'    => ['etiqueta' => 'Email',     'tipo' => 'email'],
       'telefono' => ['etiqueta' => 'Teléfono',  'tipo' => 'tel'],
       'ciudad'   => ['etiqueta' => 'Ciudad',    'tipo' => 'texto'],
+      'codigo_postal' => ['etiqueta' => 'Código postal', 'tipo' => 'cp'],
+      'provincia' => ['etiqueta' => 'Provincia', 'tipo' => 'texto', 'auto' => true, 'desde_cp' => 'codigo_postal'],
+      'iban'     => ['etiqueta' => 'IBAN',      'tipo' => 'iban'],
     ],
   ],
 
@@ -237,6 +246,40 @@ return [
       'permisos' => ['etiqueta' => 'Permisos por módulo', 'tipo' => 'permisos'],
     ],
     'lista' => ['nombre', 'email', 'rol'],
+  ],
+
+  // Incidencias (RA3, criterio g · v5.1): lo que falla y cómo se resolvió. Las tareas que fallan abren una sola.
+  'incidencias' => [
+    'titulo'    => 'Incidencias',
+    'singular'  => 'incidencia',
+    'icono'     => 'alerta',
+    'grupo'     => 'Administración',
+    'principal' => 'titulo',
+    'femenino'  => true,
+    'lista'     => ['fecha', 'titulo', 'tipo', 'gravedad', 'estado', 'responsable'],
+    'permisos'  => ['comercial' => ['ver', 'crear']],
+    'campos' => [
+      'titulo'      => ['etiqueta' => 'Qué ha pasado', 'tipo' => 'texto', 'obligatorio' => true],
+      'fecha'       => ['etiqueta' => 'Fecha',         'tipo' => 'fecha', 'obligatorio' => true, 'defecto' => 'hoy'],
+      'tipo'        => [
+        'etiqueta' => 'Tipo', 'tipo' => 'opcion', 'obligatorio' => true, 'defecto' => 'datos',
+        'opciones' => ['datos', 'rendimiento', 'seguridad', 'instalación', 'tarea', 'otro'],
+        'colores'  => ['datos' => 'azul', 'rendimiento' => 'ambar', 'seguridad' => 'rojo', 'instalación' => 'gris', 'tarea' => 'rosa', 'otro' => 'gris'],
+      ],
+      'gravedad'    => [
+        'etiqueta' => 'Gravedad', 'tipo' => 'opcion', 'obligatorio' => true, 'defecto' => 'media',
+        'opciones' => ['baja', 'media', 'alta'],
+        'colores'  => ['baja' => 'gris', 'media' => 'ambar', 'alta' => 'rojo'],
+      ],
+      'estado'      => [
+        'etiqueta' => 'Estado', 'tipo' => 'opcion', 'obligatorio' => true, 'defecto' => 'abierta',
+        'opciones' => ['abierta', 'en curso', 'resuelta'],
+        'colores'  => ['abierta' => 'rojo', 'en curso' => 'ambar', 'resuelta' => 'verde'],
+      ],
+      'responsable' => ['etiqueta' => 'Responsable',   'tipo' => 'texto'],
+      'descripcion' => ['etiqueta' => 'Descripción',   'tipo' => 'largo'],
+      'solucion'    => ['etiqueta' => 'Solución',      'tipo' => 'largo'],
+    ],
   ],
 
 ];

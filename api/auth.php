@@ -8,11 +8,13 @@
 //   api        otro programa que entra con una clave (X-API-Key): solo los recursos de la clave,
 //              lectura y, si la clave lo permite, alta y edición; nunca borrar ni administración
 //
-// Vistas especiales: el panel y el registro los ven todos; sistema, ajustes y módulos, solo admin.
+// Vistas especiales: el panel, el registro, los informes, el análisis y las consultas (sin consola SQL)
+// los ven todos, cada uno solo con los datos que puede ver; el resto, solo admin.
 // Además, un recurso solo está disponible si su módulo está activo (ver api/instalacion.php).
 
-const VISTAS_COMERCIAL = ['panel', 'registro'];
-const VISTAS = ['panel', 'registro', 'sistema', 'ajustes', 'modulos', 'api'];
+const VISTAS_COMERCIAL = ['panel', 'registro', 'informes', 'analisis', 'consultas'];
+const VISTAS = ['panel', 'registro', 'sistema', 'ajustes', 'modulos', 'api',
+  'informes', 'analisis', 'consultas', 'rendimiento', 'intercambio', 'formularios', 'tareas'];
 
 $GLOBALS['usuario_actual'] = null;
 

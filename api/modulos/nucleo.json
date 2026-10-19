@@ -2,10 +2,10 @@
   "id": "nucleo",
   "nombre": "Núcleo y administración",
   "icono": "usuarios",
-  "descripcion": "Usuarios y permisos, panel, registro de operaciones, ajustes, módulos, diagnóstico del sistema y copias de seguridad.",
-  "recursos": ["usuarios"],
-  "vistas": ["panel", "registro", "sistema", "ajustes", "modulos", "api"],
+  "descripcion": "Usuarios y permisos, panel, registro de operaciones, ajustes, módulos, diagnóstico del sistema y copias de seguridad. Informes, análisis, consultas, importación y exportación, formularios web, tareas programadas y rendimiento.",
+  "recursos": ["usuarios", "incidencias"],
+  "vistas": ["panel", "registro", "sistema", "ajustes", "modulos", "api", "informes", "analisis", "consultas", "rendimiento", "intercambio", "formularios", "tareas"],
   "dependencias": [],
   "obligatorio": true,
-  "version": "4.1"
+  "version": "5.1"
 }

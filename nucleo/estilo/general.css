@@ -632,6 +632,8 @@ dialog.modal > .modal-pie,dialog.modal > form.modal-pie{margin-top:4px}
 .linea-tiempo .marca.borrar{color:var(--rojo);background:var(--rojo-bg)}
 .linea-tiempo .marca.facturar,.linea-tiempo .marca.rectificar{color:var(--acento);background:var(--acento-tenue)}
 .linea-tiempo .marca.actualizar,.linea-tiempo .marca.instalar,.linea-tiempo .marca.configurar{color:var(--ambar);background:var(--ambar-bg)}
+.linea-tiempo .marca.importar,.linea-tiempo .marca.exportar,.linea-tiempo .marca.extraer,.linea-tiempo .marca.medir{color:var(--azul);background:var(--azul-bg)}
+.linea-tiempo .marca.incidencia{color:var(--rojo);background:var(--rojo-bg)}
 .linea-tiempo .texto{min-width:0;font-weight:500}
 .linea-tiempo .texto small{display:block;color:var(--muted);font-size:.79rem;font-weight:400;margin-top:1px}
 .linea-tiempo time{font-size:.79rem;color:var(--tenue);white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -801,6 +803,138 @@ body > footer strong{color:var(--muted);font-weight:600}
 @keyframes latido{50%{box-shadow:0 0 0 5px transparent}}
 
 .error-include{color:var(--rojo);font-size:.8rem;padding:8px}
+
+/* ---------- 14b. Organización y consulta de la información (RA3) ---------- */
+
+/* Informes */
+.informe-controles{display:flex;flex-direction:column;gap:14px}
+.informe-controles > .nota{margin:0}
+.informe-filtros{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:flex-end}
+.informe-filtros .campo{min-width:200px}
+.etiqueta-campo{font-size:.8rem;font-weight:600;color:var(--ink-2)}
+.navegador-periodo{display:flex;align-items:center;gap:8px;min-height:38px}
+.navegador-periodo strong{min-width:200px;text-align:center;font-weight:600}
+.informe-resultado[aria-busy="true"]{opacity:.55;transition:opacity .2s}
+.informe-cabecera{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:6px}
+.informe-cabecera h2{margin:0}
+.informe-meta{font-variant-numeric:tabular-nums}
+.informe-grafico{margin:10px 0 22px}
+.columnas--densas{gap:3px}
+.columnas--densas .columna-mes{font-size:.66rem}
+.tabla-resultado tfoot th,.tabla-resultado tfoot td{font-weight:700;border-top:2px solid var(--linea-fuerte);background:var(--superficie-2)}
+
+/* Gráficos de líneas (rendimiento) */
+.grafico-lineas{width:100%;height:auto;display:block;overflow:visible}
+.grafico-lineas .rejilla-linea{stroke:var(--linea);stroke-width:1}
+.grafico-lineas .eje{font-size:10px;fill:var(--muted);font-family:inherit}
+.grafico-lineas .serie polyline{stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.grafico-lineas .serie circle{stroke:var(--superficie);stroke-width:1}
+.serie-1 polyline{stroke:var(--acento)} .serie-1 circle{fill:var(--acento)}
+.serie-2 polyline{stroke:var(--azul)} .serie-2 circle{fill:var(--azul)}
+.serie-3 polyline{stroke:var(--ambar)} .serie-3 circle{fill:var(--ambar)}
+.leyenda{display:flex;gap:16px;font-size:.78rem;color:var(--muted);margin-top:8px}
+.leyenda-item::before{content:"";display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle;background:currentColor}
+.leyenda-item.serie-1{color:var(--acento)} .leyenda-item.serie-2{color:var(--azul)} .leyenda-item.serie-3{color:var(--ambar)}
+
+/* Recomendaciones del análisis y avisos */
+.recomendaciones{list-style:none;display:flex;flex-direction:column;gap:10px}
+.recomendaciones li{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:var(--r-sm);background:var(--superficie-2);border:1px solid var(--linea);line-height:1.5}
+.recomendaciones .icono{display:inline-flex;flex-shrink:0;margin-top:1px}
+.recomendaciones .icono svg{width:18px;height:18px}
+.recomendaciones li.accion .icono{color:var(--acento)}
+.recomendaciones li.aviso{background:var(--ambar-bg);border-color:transparent} .recomendaciones li.aviso .icono{color:var(--ambar)}
+.recomendaciones li.bien .icono{color:var(--verde)}
+.dato-destacado{margin-bottom:16px;color:var(--ink-2)}
+.dato-destacado strong{font-size:1.5rem;font-weight:700;color:var(--acento);margin-right:4px}
+
+/* Consultas */
+.rejilla--consultas{grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);align-items:start}
+.consulta-filtros{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+.consulta-filtro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:center}
+.consulta-agregacion{display:flex;gap:8px}
+.consulta-agregacion select{flex:1}
+fieldset.campo{border:0;padding:0;margin:0}
+fieldset.campo legend{font-size:.8rem;font-weight:600;color:var(--ink-2);margin-bottom:8px}
+fieldset.campo legend small{font-weight:400;color:var(--muted)}
+.editor-sql{width:100%;min-height:170px;white-space:pre;resize:vertical;color:var(--ink);margin:0}
+.consulta-ejemplos{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sql-generado{margin:4px 0 12px}
+.sql-generado summary{cursor:pointer;font-size:.8rem;font-weight:600;color:var(--muted)}
+.sql-generado .codigo{white-space:pre-wrap;word-break:break-word}
+
+/* Importar */
+.lista-pasos{margin:0 0 16px 1.2em;display:flex;flex-direction:column;gap:6px;color:var(--ink-2);line-height:1.5}
+.fila-importar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+.fila-importar .campo{flex:1;min-width:200px}
+.acciones-importar{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}
+.acciones-formulario{grid-column:1 / -1;display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;padding-top:16px;border-top:1px solid var(--linea)}
+.acciones-formulario .check{margin-right:auto}
+.tabla-previa td{white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.tabla-previa tr.fila-error{background:var(--rojo-bg)}
+.tabla-previa tr.fila-aviso{background:var(--ambar-bg)}
+.tabla-previa td.celda-error{color:var(--rojo);font-weight:600;text-decoration:underline wavy;text-underline-offset:3px}
+.error-texto{color:var(--rojo);font-size:.8rem;white-space:normal}
+.aviso-texto{color:var(--ambar);font-size:.8rem;white-space:normal}
+
+/* Formulario web público */
+body.publico{background:radial-gradient(ellipse at top,var(--acento-tenue),var(--bg) 60%)}
+.formulario-publico{width:min(640px,100%);margin:40px auto;padding:34px 36px 28px}
+.formulario-publico h1{font-size:1.6rem;margin-bottom:22px;letter-spacing:-.02em}
+.formulario-publico .vacio-estado h1{margin-bottom:8px}
+.formulario-publico .antetitulo{font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--acento);margin-bottom:4px}
+body.incrustado{background:transparent}
+body.incrustado .formulario-publico{margin:0;box-shadow:none;border:0}
+.trampa{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+
+/* v5.1: comparación de informes, avisos del panel, previsión, segmentos y duplicados */
+.informe-filtros--secundarios{padding-top:14px;border-top:1px solid var(--linea)}
+.comparacion{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;margin:4px 0 16px;padding:12px 14px;border-radius:var(--r-sm);background:var(--superficie-2);border:1px solid var(--linea);font-size:.88rem;color:var(--ink-2)}
+.comparacion strong{font-variant-numeric:tabular-nums;color:var(--ink)}
+.variacion{font-weight:600;font-variant-numeric:tabular-nums}
+.variacion.sube{color:var(--verde)} .variacion.baja{color:var(--rojo)}
+td.variacion.sube{color:var(--verde)} td.variacion.baja{color:var(--rojo)}
+.recomendaciones li.error{background:var(--rojo-bg);border-color:transparent} .recomendaciones li.error .icono{color:var(--rojo)}
+.avisos-panel .recomendaciones li{align-items:center}
+.avisos-panel .texto-aviso{flex:1}
+.columna--prevision .columna-relleno{background:repeating-linear-gradient(135deg,var(--acento-suave) 0 6px,transparent 6px 11px) !important;border:1px dashed var(--acento);box-shadow:none !important}
+.segmentos{list-style:none;display:flex;flex-direction:column;gap:6px}
+.segmentos details{border:1px solid var(--linea);border-radius:var(--r-sm);background:var(--superficie-2)}
+.segmentos summary{display:flex;align-items:center;gap:12px;padding:10px 12px;cursor:pointer;list-style:none}
+.segmentos summary::-webkit-details-marker{display:none}
+.segmentos summary .principal{flex:1;min-width:0}
+.segmentos summary .principal strong{display:block}
+.segmentos summary .principal small{color:var(--muted)}
+.segmentos summary .cifra{font-variant-numeric:tabular-nums;font-weight:600}
+.segmentos details[open] summary{border-bottom:1px solid var(--linea)}
+.segmentos details .lista{padding:4px 22px}
+.grupo-duplicados{border:1px solid var(--linea);border-radius:var(--r-sm);padding:10px 14px 12px;margin:0 0 12px;overflow-x:auto}
+.grupo-duplicados legend{font-size:.8rem;font-weight:600;padding:0 6px;color:var(--ink-2)}
+.grupo-duplicados .acciones-formulario{padding-top:10px}
+.boton-en-celda{margin-left:8px}
+.campo-en-linea{display:flex;align-items:center;gap:8px;margin-right:auto;font-size:.85rem;color:var(--ink-2)}
+.campo-en-linea select{height:36px;padding:0 32px 0 10px;border-radius:var(--r-sm);border:1px solid var(--linea-fuerte);background:var(--superficie) var(--chevron) no-repeat right 8px center/16px;appearance:none;color:var(--ink)}
+.sql-corto{font-family:'DM Mono',monospace;font-size:.75rem;max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+
+/* Impresión de informes (Guardar como PDF) */
+@media print{
+  body{display:block;height:auto;overflow:visible;background:#fff}
+  body > header,.cuerpo > nav,body > footer,.avisos,.no-imprimir,.pagina-acciones,.ordenar .flecha{display:none !important}
+  main{padding:0;overflow:visible}
+  .tarjeta,.vidrio{box-shadow:none !important;border:0 !important;background:#fff !important;backdrop-filter:none !important;padding:0 !important}
+  .tabla-contenedor{max-height:none;overflow:visible}
+  table{font-size:10pt}
+  th .ordenar{all:unset}
+  .columna-relleno,.barra .relleno{animation:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
+@media (max-width:1100px){
+  .rejilla--consultas{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .consulta-filtro{grid-template-columns:1fr 1fr}
+  .navegador-periodo strong{min-width:0;flex:1}
+  .formulario-publico{margin:16px auto;padding:24px 20px}
+}
 
 /* ---------- 15. Responsive y accesibilidad ---------- */
 

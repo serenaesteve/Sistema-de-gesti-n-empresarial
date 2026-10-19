@@ -15,6 +15,13 @@ const ACCIONES = {
   entrar:   { marca: "entrar",   texto: "Inicio de sesión" },
   salir:    { marca: "salir",    texto: "Cierre de sesión" },
   instalar: { marca: "instalar", texto: "Instalación" },
+  importar: { marca: "subir",    texto: "Importación" },
+  exportar: { marca: "descargar", texto: "Exportación" },
+  extraer:  { marca: "tareas",   texto: "Extracción programada" },
+  incidencia: { marca: "alerta", texto: "Incidencia" },
+  medir:    { marca: "rendimiento", texto: "Prueba de rendimiento" },
+  deshacer: { marca: "rectificar", texto: "Importación deshecha" },
+  fusionar: { marca: "clientes", texto: "Fusión de duplicados" },
 };
 
 export async function vista() {

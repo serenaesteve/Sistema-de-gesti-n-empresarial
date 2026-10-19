@@ -1,6 +1,6 @@
 # serena | blush · ERP-CRM
 
-Mini ERP-CRM hecho para los **RA1 y RA2 de 0491 · Sistemas de gestión empresarial** (DAM2).
+Mini ERP-CRM hecho para los **RA1, RA2 y RA3 de 0491 · Sistemas de gestión empresarial** (DAM2).
 Parte de la estructura de **Crimson**, el proyecto de clase: `api/`, `nucleo/`, `modulos/` y componentes con `data-include`. A partir de ahí añade:
 
 - base de datos real
@@ -9,13 +9,14 @@ Parte de la estructura de **Crimson**, el proyecto de clase: `api/`, `nucleo/`, 
 - copias de seguridad
 - **instalador** (asistente web y por terminal), **módulos activables** con dependencias, **perfiles** por tipo de empresa y **ajustes**
 - **actualizaciones** con migraciones y copia automática, **claves de API** para otros programas, **entornos** (desarrollo, pruebas y explotación) y **permisos por módulo** para cada usuario
+- **organización y consulta de la información** para trabajar con datos reales: importación desde CSV/JSON, formularios web públicos, NIF/CIF validados, constructor de consultas y consola SQL de solo lectura, informes por periodo con gráfico y exportación, extracciones programadas, pantalla de rendimiento y análisis del negocio con recomendaciones
 - diagnóstico del sistema y registro de operaciones
 - pruebas automáticas
 
 La interfaz es sobria y mantiene la identidad de [serenaesteve.com](https://serenaesteve.com): logotipo, tipografía DM Sans y acento frambuesa.
 
 - **Autora:** Serena Esteve
-- **Versión:** 4.1, 18/10/2026
+- **Versión:** 5.1, 19/10/2026
 - **Pila:** Ubuntu 24.04 · Apache 2.4 · PHP 8.3 · SQLite o MySQL · HTML + CSS + JavaScript sin librerías
 
 ![Panel](docs/capturas/panel.png)
@@ -139,6 +140,95 @@ Al editar un usuario aparece una cuadrícula **módulo × (ver, crear, editar, b
 | ![Perfil](docs/capturas/instalador-2-perfil.png) | ![MySQL](docs/capturas/instalador-3-mysql.png) | ![Módulos](docs/capturas/modulos.png) |
 | ![Actualización](docs/capturas/actualizacion-pendiente.png) | ![Clave de API](docs/capturas/api-clave-creada.png) | ![Permisos](docs/capturas/usuario-permisos.png) |
 
+## Organización y consulta de la información (RA3)
+
+Todo lo necesario para la unidad 4, cuando se meten los datos reales de una empresa. Está en dos secciones nuevas del menú: **Análisis** y **Datos**.
+
+| Criterio | Dónde | Qué hay |
+|---|---|---|
+| a) Consultar y manipular datos | Análisis → **Consultas** | Constructor (datos, columnas, filtros, agrupar con contar/sumar/media/mín./máx., **tabla cruzada**, orden) que enseña el SQL generado · consola SQL de solo lectura (admin) · **Explicar** · consultas guardadas · **fusionar duplicados** |
+| b) Formularios | Datos → **Formularios web** · **Importar y exportar** · formularios del ERP | Formularios públicos · importación con vista previa (también **pedidos y compras con líneas**), modo **actualizar** y **deshacer** · NIF/NIE/CIF, **IBAN**, **código postal con provincia** y **teléfono** validados |
+| c) Informes | Análisis → **Informes** | 10 informes (incluidos **IVA del trimestre** y **modelo 347**) por día, semana, mes, trimestre, año o fechas a medida, con **filtros**, **comparación** con el periodo anterior o el año pasado, totales y gráfico |
+| d) Exportar | Informes, Consultas, Importar y exportar, cada listado | **Excel (.xlsx)** · CSV para Excel (BOM, `;`, decimales con coma, fila TOTAL) · JSON · imprimir / PDF |
+| e) Automatizar extracciones | Datos → **Tareas programadas** · `scripts/tareas.php` | Un informe o una **consulta guardada** cada día, lunes o día 1, a Excel/CSV/JSON en `datos/extracciones/` |
+| f) Rendimiento | Análisis → **Rendimiento** · `scripts/monitor.php` · `scripts/carga.php` | CPU, memoria, disco y BD; tiempo de cada petición; **consultas lentas con su plan**; prueba de velocidad; prueba de carga |
+| g) Documentar operaciones e incidencias | **Incidencias** · **Registro** · tablas de abajo | Registro de **incidencias** (las tareas que fallan abren una sola) · importaciones, exportaciones, fusiones, extracciones y pruebas anotadas |
+| h) Información relevante | **Panel** (avisos) · Análisis → **Análisis** | **Avisos** del día en el panel · tendencia y **previsión de ventas**, **segmentos de clientes (RFM)**, concentración, clientes en riesgo, cobertura de stock, márgenes, pendiente de facturar, calidad de los datos y recomendaciones |
+
+![Informes](docs/capturas/informes.png)
+
+![Análisis](docs/capturas/analisis.png)
+
+![Previsión y segmentos](docs/capturas/analisis-prevision.png)
+
+### Informes
+
+| Informe | Para qué sirve |
+|---|---|
+| Ventas por periodo | Pedidos, unidades, importe y ticket medio por día, semana, mes o año (también los periodos sin ventas) |
+| Ventas por cliente · por producto | Quién compra y qué se vende más, con su % del total |
+| Libro de facturas emitidas | Base, IVA y total de cada factura y rectificativa: lo que pide la gestoría |
+| Pedidos pendientes | Pendientes y enviados, con los días que llevan esperando |
+| Clientes sin compras recientes | Más de N días sin pedir: a quién llamar |
+| Inventario valorado | Stock a precio de venta y a coste medio de compra |
+| Compras por proveedor | Importe recibido de cada proveedor |
+| IVA del trimestre | IVA repercutido por tipo (y rectificativas), soportado en compras (estimado con el IVA general) y resultado: el resumen del modelo 303 |
+| Operaciones con terceros (347) | Clientes y proveedores con más de 3.005,06 € al año (IVA incluido), por trimestres |
+
+Los de ventas y compras se pueden **filtrar** (cliente, producto, categoría, proveedor, estado) y **comparar** con el periodo anterior o con el mismo periodo del año pasado (columna «anterior» y variación en %).
+
+Se ven en pantalla, se imprimen (hoja de estilos de impresión) y se descargan en Excel, CSV o JSON con la misma dirección: `api/api.php?recurso=informes&informe=libro_facturas&desde=2026-07-01&hasta=2026-09-30&formato=xlsx`.
+
+### Consultas
+
+- **Constructor**: solo usa columnas de una lista blanca sacada del esquema y valores parametrizados. Muestra el SQL para aprender a escribirlo.
+- **Consola SQL** (solo administración): una sentencia `SELECT`/`WITH`, sin `;` ni comentarios, sin las tablas `usuarios` y `claves_api`, y en una conexión aparte en **modo solo lectura del propio motor** (`PRAGMA query_only = ON` en SQLite, transacción `READ ONLY` en MySQL). Aunque una comprobación fallara, el motor no dejaría escribir.
+- **Tabla cruzada**: agrupar por dos campos (por ejemplo, clientes × meses de la fecha), hasta 24 columnas y su total.
+- **Explicar**: enseña el plan de la base de datos (`EXPLAIN QUERY PLAN` / `EXPLAIN`) y dice en palabras si usa índices o recorre la tabla entera.
+- Hasta 1.000 filas. Las consultas se guardan para repetirlas, exportarlas o programarlas como tarea.
+
+### Datos reales: importar y formularios
+
+- **Importar** clientes, productos o proveedores desde la hoja de Excel de la empresa: plantilla descargable, columnas reconocidas por nombre o etiqueta (sin importar tildes ni mayúsculas), `;` `,` o tabulador, UTF-8 o Windows-1252, decimales con coma y fechas `15/03/2026`. Primero se ve una **vista previa** con los errores de cada fila y los posibles repetidos (por NIF, email o nombre); después se importan solo las filas correctas, en una transacción.
+- **Formularios web**: `formulario.html?f=pide-presupuesto` (o incrustado con `<iframe>`). Crean el registro con la misma validación que el alta a mano; un cliente entra como «potencial». Tienen un campo trampa para robots y un límite de 5 envíos por hora, origen y formulario. No se guarda la IP, solo una huella.
+- **Pedidos y compras** también se importan: una fila por línea con una columna «Referencia»; el cliente o proveedor se busca por nombre o NIF y el producto por nombre. Son historial y no cambian el stock.
+- Los **repetidos** se pueden omitir, **actualizar** (solo las columnas que trae el archivo) o importar igualmente, y **cada importación se puede deshacer** desde su historial.
+- **Duplicados**: Análisis → Calidad de los datos → «Revisar» agrupa los clientes o proveedores repetidos y los **fusiona** (sus pedidos pasan al que se queda).
+- **NIF, NIE y CIF**, **IBAN** (dígitos de control), **código postal** (con su provincia, que se rellena sola) y **teléfono** se comprueban y se guardan normalizados.
+
+### Automatizar: tareas programadas
+
+```bash
+crontab -e
+*/15 * * * * php /var/www/html/Sistema-de-gesti-n-empresarial/scripts/tareas.php >> /var/log/blush-tareas.log 2>&1
+* * * * *    php /var/www/html/Sistema-de-gesti-n-empresarial/scripts/monitor.php > /dev/null 2>&1
+```
+
+`php scripts/tareas.php --todas` las ejecuta todas para probar. Cada ejecución (también las del botón «Ejecutar») se anota con sus filas, milisegundos y archivo; si falla, aparece como **incidencia** en el Registro. Se conservan los 30 últimos archivos de cada tarea.
+
+### Rendimiento y prueba de carga
+
+```bash
+php scripts/carga.php                              # 2.000 clientes y 20.000 pedidos en una BD temporal
+php scripts/carga.php --clientes=500 --pedidos=3000
+```
+
+Resultado en este equipo (SQLite, PHP 8.3, mediana de 3 repeticiones):
+
+| Prueba | 3.000 pedidos | 20.000 pedidos (≈ 50.000 líneas) |
+|---|---:|---:|
+| Listado de clientes / pedidos (página 1) | < 1 ms | 0,1 / 1,0 ms |
+| Búsqueda de clientes | 0,3 ms | 0,7 ms |
+| Panel de inicio | 8,9 ms | 113 ms |
+| Informes de ventas (por periodo, cliente, producto) | 4–6 ms | 54–71 ms |
+| Análisis | 286 ms → **19 ms** con la migración 010 | 225 ms |
+
+En la 5.1, con 20.000 pedidos: análisis completo (con previsión y segmentos) 297 ms, avisos del panel 64 ms, tabla cruzada clientes × meses 25 ms e informe comparado con el año pasado 41 ms.
+
+Las consultas que pasan de 500 ms (informes, constructor, consola y listados) se guardan con su SQL y se ven en Rendimiento, con el botón **Explicar**.
+
+La primera medida del análisis (286 ms con solo 3.000 pedidos) llevó a la **migración 010**, que añade índices en `pedido_lineas.producto_id`, `compra_lineas.producto_id` y `pedidos(cliente_id, fecha)`.
+
 ## Qué hace
 
 | Sección | Módulo | Para qué sirve |
@@ -230,7 +320,7 @@ El código tiene en cuenta las diferencias entre los dos motores:
 ## Pruebas automáticas
 
 ```bash
-bash tests/ejecutar.sh                      # 34 de instalación + 27 de API + 18 en navegador (si Playwright está instalado)
+bash tests/ejecutar.sh                      # 34 de instalación + 54 de API + 3 de scripts + 32 en navegador (si Playwright está instalado)
 SOLO_API=1 bash tests/ejecutar.sh           # solo API (PHP + curl, sin dependencias)
 CAPTURAS=docs/capturas bash tests/ejecutar.sh   # además, regenera las capturas de la documentación
 ```
@@ -247,6 +337,7 @@ Arrancan su propio servidor (`php -S`) con una **base de datos temporal**, así 
 - usuarios y cambio de contraseña
 - copias de seguridad
 - registro y diagnóstico
+- RA3: NIF/CIF, informes y sus totales, CSV/JSON, constructor y consola SQL (intentos de escribir o leer tablas protegidas), consultas guardadas, importación con errores y repetidos, formularios públicos (validación, robots, límite, pausa), tareas y su archivo, rendimiento, análisis y los scripts de cron
 
 ---
 
@@ -254,6 +345,7 @@ Arrancan su propio servidor (`php -S`) con una **base de datos temporal**, así 
 
 ```
 ├── index.html · factura.html       Aplicación y factura imprimible
+├── formulario.html                 Formulario web público (RA3)
 ├── instalar.html                   Asistente de instalación
 ├── api/
 │   ├── api.php                     Punto de entrada, sesión y enrutado
@@ -270,16 +362,25 @@ Arrancan su propio servidor (`php -S`) con una **base de datos temporal**, así 
 │   ├── negocio.php                 Stock, precios, compras, facturación y rectificativas
 │   ├── copia.php                   Copias de seguridad y cambio de contraseña
 │   ├── panel.php · sistema.php     Indicadores y diagnóstico
+│   ├── informes.php                Catálogo de informes, periodos y exportación CSV/JSON (RA3)
+│   ├── consultas.php               Constructor, consola SQL de solo lectura y consultas guardadas (RA3)
+│   ├── intercambio.php             Importación CSV/JSON con vista previa y plantillas (RA3)
+│   ├── formularios.php             Formularios web públicos (RA3)
+│   ├── tareas.php                  Extracciones programadas (RA3)
+│   ├── rendimiento.php             Métricas del servidor, tiempos de la API y prueba de velocidad (RA3)
+│   ├── analisis.php                Tendencia, Pareto, riesgo, cobertura, márgenes y recomendaciones (RA3)
 ├── nucleo/                         Componentes HTML, estilos y JS comunes
 ├── modulos/                        Vistas: acceso, panel, crud (genérica), ficha-cliente, registro, sistema, módulos, ajustes,
-│                                   claves-api, actualizar, reinstalar, mi-clave
+│                                   claves-api, actualizar, reinstalar, mi-clave · informes, analisis, consultas,
+│                                   rendimiento, intercambio, formularios, tareas (RA3)
 ├── instalacion/perfiles/*.json     Perfiles de instalación (consultoría, tienda, distribuidora)
-├── instalacion/migraciones/*.php   Migraciones numeradas (001 … 005)
+├── instalacion/migraciones/*.php   Migraciones numeradas (001 … 014)
 ├── tests/                          marco.php, instalacion.php, api.php, navegador.py y ejecutar.sh
-├── scripts/                        instalar.php (instalación desatendida), configurar-servidor.sh y mysql.sql
+├── scripts/                        instalar.php (instalación desatendida), tareas.php y monitor.php (cron), carga.php
+│                                   (prueba de carga), configurar-servidor.sh y mysql.sql
 ├── Dockerfile · docker-compose.yml
 ├── docs/capturas/                  Capturas y facturas de ejemplo
-└── datos/                          erp.sqlite, instalacion.json y copias/ (no se suben a git) + .htaccess
+└── datos/                          erp.sqlite, instalacion.json, copias/ y extracciones/ (no se suben a git) + .htaccess
 ```
 
 ## API
@@ -300,8 +401,16 @@ Arrancan su propio servidor (`php -S`) con una **base de datos temporal**, así 
 | POST | `facturar&id=5` · `rectificar&id=7` | Facturar un pedido · rectificar una factura `{motivo}` |
 | GET · POST | `copia` · `restaurar` | Copia de seguridad en JSON |
 | GET | `menu` · `esquema` · `info` · `panel&periodo=` · `registro` · `sistema` | Datos de la interfaz |
+| GET | `informes[&informe=…&desde=&hasta=&agrupacion=&dias=&formato=csv\|json]` | Lista de informes · un informe (RA3) |
+| GET | `analisis` | Análisis del negocio (RA3) |
+| GET · POST · DELETE | `consultas[&definicion={…}\|&sql=…\|&guardada=3][&formato=]` | Constructor · consola SQL (admin) · guardar · borrar (RA3) |
+| GET · POST | `intercambio[&plantilla=clientes]` · `intercambio&accion=analizar\|importar&destino=clientes` | Importar `{contenido, formato, nombre, omitir_duplicados}` (RA3) |
+| GET · POST · PUT · DELETE | `formularios[&id=]` | Formularios web (admin, RA3) |
+| GET · POST | `formulario-publico&f=slug` | Formulario público, sin sesión ni `X-Blush` (RA3) |
+| GET · POST · PUT · DELETE | `tareas[&id=][&accion=ejecutar][&descarga=7]` | Tareas programadas (admin, RA3) |
+| GET · POST | `rendimiento&horas=24` · `rendimiento&accion=muestra\|medir` | Rendimiento (admin, RA3) |
 
-Las escrituras exigen la cabecera `X-Blush: 1`. Respuestas: `{"ok": true, "datos": …}` o `{"ok": false, "error": "…", "errores": {"lineas.1.cantidad": "…"}}` con su código HTTP (400, 401, 403, 404, 405, 409, 422, 500, 503).
+Los listados aceptan también `formato=json`. Las escrituras exigen la cabecera `X-Blush: 1` (salvo el formulario público). Respuestas: `{"ok": true, "datos": …}` o `{"ok": false, "error": "…", "errores": {"lineas.1.cantidad": "…"}}` con su código HTTP (400, 401, 403, 404, 405, 409, 422, 500, 503).
 
 ---
 
@@ -334,6 +443,16 @@ Las escrituras exigen la cabecera `X-Blush: 1`. Respuestas: `{"ok": true, "datos
 | 23 | Informe y reinstalación | Sistema | Informe en Markdown; reinstalar pide confirmación, guarda copia y vuelve al asistente |
 | 24 | Verificación completa | `bash tests/ejecutar.sh` (dos veces) | **79/79** (34 instalación · 27 API · 18 navegador) |
 | 25 | Verificación en Apache tras actualizar | Vista Sistema | 40 correctas · 9 avisos · 0 errores |
+| 26 | **RA3:** estudiar `003-Organización y consulta de la información` del repositorio de clase | Formularios, informes por periodo, gráficos SVG, monitor con psutil, intercambio CSV/JSON y BI | Mismas ideas, aplicadas a mi ERP y a sus datos |
+| 27 | Validación de NIF/NIE/CIF y NIF válidos en la demo | Tipo de campo `nif` | 422 con la letra mal; se guarda normalizado |
+| 28 | Informes, consultas, importación, formularios, tareas, rendimiento y análisis | Migraciones 006–010 | Probado con `bash tests/ejecutar.sh` |
+| 29 | Prueba de carga | `php scripts/carga.php` | Análisis 286 ms con 3.000 pedidos → migración 010 con índices → 19 ms; con 20.000 pedidos todo por debajo de 250 ms |
+| 30 | Scripts de cron | `php scripts/tareas.php --todas` · `php scripts/monitor.php` | Archivo en `datos/extracciones/` y muestra en `metricas` |
+| 31 | Verificación completa | `bash tests/ejecutar.sh` | **104/104** (34 instalación · 41 API · 3 scripts · 26 navegador) |
+| 33 | **v5.1:** pedidos y compras con líneas, modo actualizar, deshacer, duplicados, CP/IBAN/teléfono, filtros y comparación, IVA y 347, tabla cruzada, Excel, tareas con consultas, avisos, consultas lentas, incidencias, previsión y RFM | Migraciones 011–014 | **123/123** (34 instalación · 54 API · 3 scripts · 32 navegador) |
+| 34 | Prueba de carga 5.1 | `php scripts/carga.php` | Todo por debajo de 300 ms con 20.000 pedidos |
+| 35 | Actualización real de Apache a la 5.1 | Navegador: Actualizar ahora | 5.0 → 5.1, 4 migraciones, copia `datos/copias/erp-20261019-144546-antes-de-actualizar.sqlite`; Sistema: 50 correctas · 9 avisos · 0 errores; el panel avisa de los 7 clientes y 3 proveedores antiguos con NIF inventado |
+| 32 | **Actualización real** de la instalación de Apache a la 5.0 | Navegador: Actualizar ahora | 4.1 → 5.0, 5 migraciones (006–010), copia `datos/copias/erp-20261019-130737-antes-de-actualizar.sqlite`; Sistema: 47 correctas · 9 avisos · 0 errores; `datos/extracciones/` → 403 |
 
 ## Incidencias
 
@@ -357,4 +476,14 @@ Las escrituras exigen la cabecera `X-Blush: 1`. Respuestas: `{"ok": true, "datos
 | I-17 | Reinstalar fallaba con «cannot VACUUM - SQL statements in progress» | La copia (`VACUUM INTO`) no puede hacerse con una consulta abierta (la de comprobar la contraseña). Se localizó gracias al entorno de desarrollo, que muestra el error real | Cerrar la consulta (`closeCursor()`) antes de la copia | ✅ Resuelta |
 | I-18 | Una prueba del navegador fallaba solo al hacer capturas | Tras guardar Ajustes la página se recarga a los 700 ms; con la pausa de las capturas, la recarga caía en la prueba siguiente | Las pruebas esperan a la navegación (`expect_navigation`) | ✅ Resuelta |
 | I-19 | Migrar la instalación de SQLite a MySQL no se ha podido probar | Falta el usuario MySQL (I-01) | Procedimiento documentado (copia → reinstalar con MySQL → restaurar) | ⏳ Pendiente de `sudo` |
+| I-20 | Los datos de demostración tenían NIF inventados que ahora no pasan la validación | Antes el NIF era texto libre | NIF válidos en la demo. En la instalación de Apache (datos antiguos) un cliente con NIF inválido pide corregirlo al editarlo, y **Análisis → Calidad de los datos** los señala | ✅ Resuelta · ⚠️ datos antiguos |
+| I-21 | `'#' \|\| id` solo funciona en SQLite | MySQL concatena con `CONCAT()` | El número de pedido se compone en PHP, igual en los dos motores | ✅ Resuelta |
+| I-22 | La parte FROM del constructor se cortaba mal | Se buscaba « FROM » en la consulta, y las columnas calculadas tienen subconsultas con su propio FROM | `consultaBase()` devuelve la parte FROM por separado | ✅ Resuelta |
+| I-23 | Todas las pruebas del navegador fallaban por tiempo de espera | Un paréntesis de más en `modulos/consultas.js` impedía cargar la aplicación (`Unexpected token ')'`) | Corregido; ahora se comprueba que todos los módulos JS cargan | ✅ Resuelta |
+| I-24 | El límite de envíos de los formularios web contaba todos los formularios juntos | La huella del origen era la misma para todos | Límite por origen **y** formulario | ✅ Resuelta |
+| I-25 | El análisis tardaba 286 ms con solo 3.000 pedidos | Subconsultas por producto sin índice en `producto_id` | Migración 010 con índices: 19 ms | ✅ Resuelta |
+| I-26 | Las tareas y el monitor no se ejecutan solos en este equipo | Hay que añadir las líneas a `crontab` del usuario del servidor | Líneas documentadas arriba y en las pantallas Tareas y Rendimiento; se han probado a mano | ⏳ Pendiente de activar |
+| I-27 | Al importar pedidos, las filas que continuaban un pedido daban «cliente obligatorio» | Solo la primera fila de cada referencia trae el cliente | Las siguientes filas heredan la cabecera vacía de la primera | ✅ Resuelta |
+| I-28 | El «% del total» de los informes salía vacío | Se rellenaba la columna con `null` antes de calcularlo y el valor calculado no la sustituía | Se calcula después y sustituye al vacío | ✅ Resuelta |
+| I-29 | Las consultas lentas de los listados no se podían explicar | Los listados usan parámetros con nombre (`:q0`) y se guardaban como lista | Se guardan con su nombre | ✅ Resuelta |
 | I-12 | Con `php -S` (pruebas), Sistema marca la BD como descargable | El servidor integrado de PHP no aplica `.htaccess` | Correcto: el aviso es real en ese servidor; las pruebas usan una BD temporal fuera del proyecto | ✅ Documentada |

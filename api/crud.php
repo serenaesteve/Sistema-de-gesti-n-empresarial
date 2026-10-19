@@ -8,7 +8,7 @@
 //   pagina=2             paginación; sin este parámetro se devuelven todas las filas
 //   desde=&hasta=        filtro por el campo de fecha del módulo (aaaa-mm-dd)
 //   cliente_id=3         filtro por cualquier campo de relación
-//   formato=csv          descarga en CSV (para Excel)
+//   formato=csv|json     descarga en CSV (para Excel) o JSON
 
 function crud(PDO $pdo, array $config, array $esquema, array $usuario, string $tabla, string $metodo, ?int $id): never {
   $modulo = $esquema[$tabla];
@@ -20,6 +20,8 @@ function crud(PDO $pdo, array $config, array $esquema, array $usuario, string $t
   if ($metodo === 'GET') {
     if ($id !== null) responder(obtener($pdo, $esquema, $tabla, $id));
     if (($_GET['formato'] ?? '') === 'csv') exportarCsv($pdo, $esquema, $tabla);
+    if (($_GET['formato'] ?? '') === 'json') exportarJson($pdo, $config, $esquema, $tabla);
+    if (($_GET['formato'] ?? '') === 'xlsx') exportarResultado(resultadoListado($pdo, $esquema, $tabla) + ['titulo' => $modulo['titulo']], 'xlsx', $tabla);
     responder(listar($pdo, $config, $esquema, $tabla));
   }
 
@@ -91,7 +93,8 @@ function crud(PDO $pdo, array $config, array $esquema, array $usuario, string $t
 // ---------- Consultas ----------
 
 // SELECT con los JOIN de las relaciones y las columnas calculadas.
-// Devuelve la consulta, las columnas en las que se puede buscar y las que se pueden ordenar.
+// Devuelve la consulta, las columnas en las que se puede buscar, las que se pueden ordenar
+// y la parte FROM … JOIN (para las consultas del constructor, api/consultas.php).
 function consultaBase(array $esquema, string $tabla): array {
   $modulo = $esquema[$tabla];
   $select = ['t.*'];
@@ -109,7 +112,7 @@ function consultaBase(array $esquema, string $tabla): array {
       $buscables[] = "$alias.{$def['mostrar']}";
       $ordenables[$nombre] = "$alias.{$def['mostrar']}";
     } else {
-      if (in_array($def['tipo'], ['texto', 'email', 'tel', 'opcion'], true)) $buscables[] = "t.$campo";
+      if (in_array($def['tipo'], ['texto', 'email', 'tel', 'opcion', 'nif'], true)) $buscables[] = "t.$campo";
       $ordenables[$campo] = "t.$campo";
     }
   }
@@ -118,7 +121,8 @@ function consultaBase(array $esquema, string $tabla): array {
     $ordenables[$campo] = $def['sql'];
   }
 
-  return ['SELECT ' . implode(', ', $select) . " FROM $tabla t " . implode(' ', $joins), $buscables, $ordenables];
+  $desde = " FROM $tabla t " . implode(' ', $joins);
+  return ['SELECT ' . implode(', ', $select) . $desde, $buscables, $ordenables, $desde];
 }
 
 // cliente_id -> cliente
@@ -191,8 +195,10 @@ function listar(PDO $pdo, array $config, array $esquema, string $tabla): array {
   $desde = ($pagina - 1) * $por;
 
   // LIMIT con enteros ya validados: con prepares emulados (MySQL) un parámetro se enviaría entre comillas.
+  $inicio = hrtime(true);
   $consulta = $pdo->prepare($sql . $where . $orden . " LIMIT $por OFFSET $desde");
   $consulta->execute($parametros);
+  if (function_exists('anotarLenta')) anotarLenta($pdo, 'listado', $modulo['titulo'], $sql . $where . $orden . " LIMIT $por OFFSET $desde", $parametros, (hrtime(true) - $inicio) / 1e6, $total);
 
   return [
     'filas'   => conLineas($pdo, $modulo, array_map(fn($f) => normalizar($modulo, $f), $consulta->fetchAll())),
@@ -371,6 +377,26 @@ function validarCampos(PDO $pdo, array $campos, array $entrada, bool $editando, 
         }
         break;
 
+      case 'nif':
+        $valor = normalizarNif((string)$valor);
+        if (!nifValido($valor)) $error('NIF, NIE o CIF no válido (revisa la letra o el dígito de control)');
+        break;
+
+      case 'iban':
+        $valor = normalizarIban((string)$valor);
+        if (!ibanValido($valor)) $error('IBAN no válido (revisa los dígitos de control)');
+        break;
+
+      case 'cp':
+        $valor = trim((string)$valor);
+        if (!provinciaDeCp($valor)) $error('Código postal no válido (5 cifras, de 01000 a 52999)');
+        break;
+
+      case 'tel':
+        $valor = trim((string)$valor);
+        if (!telefonoValido($valor)) $error('Teléfono no válido (9 cifras, o con prefijo internacional: +44…)');
+        break;
+
       case 'largo':
         $valor = (string)$valor;
         if (mb_strlen($valor) > 5000) $error('Máximo 5000 caracteres');
@@ -398,6 +424,11 @@ function validarCampos(PDO $pdo, array $campos, array $entrada, bool $editando, 
     }
 
     $limpio[$campo] = $valor;
+  }
+
+  // Campos calculados a partir de otros: la provincia sale del código postal
+  foreach ($campos as $campo => $def) {
+    if (isset($def['desde_cp']) && array_key_exists($def['desde_cp'], $limpio)) $limpio[$campo] = provinciaDeCp($limpio[$def['desde_cp']]);
   }
 
   return [$limpio, $errores];
@@ -440,6 +471,38 @@ function exportarCsv(PDO $pdo, array $esquema, string $tabla): never {
   }
   fclose($salida);
   exit;
+}
+
+// Descarga JSON con los mismos filtros que el listado (para otros programas o para volver a importar)
+function exportarJson(PDO $pdo, array $config, array $esquema, string $tabla): never {
+  unset($_GET['pagina']);
+  $filas = listar($pdo, $config, $esquema, $tabla);
+  header('Content-Disposition: attachment; filename="' . $tabla . '-' . date('Y-m-d') . '.json"');
+  echo json_encode(['recurso' => $tabla, 'exportado' => date('c'), 'total' => count($filas), 'filas' => $filas],
+    JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+  exit;
+}
+
+// Listado con los filtros de la petición como {columnas, filas} (para el Excel)
+function resultadoListado(PDO $pdo, array $esquema, string $tabla): array {
+  $modulo = $esquema[$tabla];
+  [$sql, $buscables, $ordenables] = consultaBase($esquema, $tabla);
+  [$where, $parametros, $orden] = condiciones($esquema, $tabla, $buscables, $ordenables);
+  $consulta = $pdo->prepare($sql . $where . $orden);
+  $consulta->execute($parametros);
+  $filas = conLineas($pdo, $modulo, array_map(fn($f) => normalizar($modulo, $f), $consulta->fetchAll()));
+  $columnas = [['clave' => 'id', 'etiqueta' => 'Nº', 'tipo' => 'entero']];
+  foreach ($modulo['campos'] as $campo => $def) {
+    if (in_array($def['tipo'], ['clave', 'permisos'], true)) continue;
+    $columnas[] = ['clave' => $def['tipo'] === 'relacion' ? nombreRelacion($campo) : $campo, 'etiqueta' => $def['etiqueta'],
+      'tipo' => in_array($def['tipo'], ['moneda', 'entero', 'fecha'], true) ? $def['tipo'] : 'texto'];
+  }
+  if (!empty($modulo['lineas'])) $columnas[] = ['clave' => 'lineas', 'etiqueta' => $modulo['lineas']['etiqueta'], 'tipo' => 'texto'];
+  foreach ($modulo['calculados'] ?? [] as $campo => $def) {
+    if (empty($def['oculto'])) $columnas[] = ['clave' => $campo, 'etiqueta' => $def['etiqueta'], 'tipo' => in_array($def['tipo'], ['moneda', 'entero'], true) ? $def['tipo'] : 'texto'];
+  }
+  if (!empty($modulo['lineas'])) $filas = array_map(fn($f) => ['lineas' => resumenLineas($f['lineas'])] + $f, $filas);
+  return ['columnas' => $columnas, 'filas' => $filas];
 }
 
 // ---------- Textos para el registro ----------

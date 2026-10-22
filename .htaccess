@@ -1,0 +1,21 @@
+# Configuración de seguridad para Apache
+# Desactiva el listado automático de directorios
+Options -Indexes
+
+# Bloqueo de acceso directo a scripts de servidor, backups y archivos ocultos
+<FilesMatch "(^\.|\.(bak|config|sql|sqlite|sqlite3|sh|log)$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# Cabeceras de seguridad en respuestas HTTP
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "same-origin"
+</IfModule>
